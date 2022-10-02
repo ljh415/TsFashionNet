@@ -52,6 +52,7 @@ def add_weight_heatmap(img, landmark, alpha=0.3, plot=True):
         return new_img
     
 def landmark_check(img, lm_out, landmark):
+    height, width = img.size
     for idx, lm in enumerate(lm_out.squeeze()):
         lm = transforms.ToPILImage()(lm)
         lm = transforms.Resize((width, height))(lm)
@@ -93,7 +94,7 @@ def attribute_check(attr_gt, attr_pred, thr=None):
         attr_pred = torch.where(attr_pred>=thr, 1, 0).detach().cpu()
         attr_pred = [x[0] for x in attr_pred.nonzero().numpy()]
     else :
-        attr_pred = {idx:value for idx, value in enumerate(attr_out.detach().cpu().numpy())}
+        attr_pred = {idx:value for idx, value in enumerate(attr_pred.detach().cpu().numpy())}
         attr_pred = dict(sorted(attr_pred.items(), reverse=True, key=lambda x: x[1]))
         attr_pred = list(attr_pred.keys())[:len(attr_gt)]
         
