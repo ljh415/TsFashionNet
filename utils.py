@@ -1,5 +1,8 @@
 import os
+import cv2
 import datetime
+import numpy as np
+import matplotlib.pyplot as plt
 
 import torch
 import torchvision.transforms as transforms
@@ -28,3 +31,22 @@ def checkpoint_save(model, save_dir, epoch, loss):
         "epoch": epoch,
         "model_state_dict": model.state_dict(),
     }, save_path)
+    
+def add_weight_heatmap(img, landmark, alpha=0.3, plot=True):
+    height, width = img.size
+    check_img = np.zeros(dtype=np.float32, shape=(width, height))
+    
+    for w in landmark:
+        check_img += w
+    new_h_m = np.stack([check_img*255]*3, axis=-1).astype(np.uint8)
+    origin_image = np.array(img).astype(np.uint8)
+    cam_heat = cv2.applyColorMap(new_h_m, cv2.COLORMAP_JET)
+    cam_heat = cv2.cvtColor(cam_heat, cv2.COLOR_RGB2BGR)
+    beta = 1 - alpha
+    new_img = cv2.addWeighted(cam_heat, alpha, origin_image, beta, 0)
+
+    if plot:
+        plt.imshow(new_img)
+        plt.show()
+    else :
+        return new_img
