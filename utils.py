@@ -50,3 +50,60 @@ def add_weight_heatmap(img, landmark, alpha=0.3, plot=True):
         plt.show()
     else :
         return new_img
+    
+def landmark_check(img, lm_out, landmark):
+    for idx, lm in enumerate(lm_out.squeeze()):
+        lm = transforms.ToPILImage()(lm)
+        lm = transforms.Resize((width, height))(lm)
+        lm = transforms.ToTensor()(lm)
+        
+        if idx == 0:
+            upsized_lm = lm
+        else :
+            upsized_lm = torch.cat([upsized_lm, lm], axis=0)
+    
+    lm_gt = add_weight_heatmap(img, landmark, plot=False)
+    lm_pred = add_weight_heatmap(img, upsized_lm.numpy(), plot=False)
+    
+    plt.figure(figsize=(10, 15))
+    plt.subplot(1,3,1)
+    plt.imshow(img)
+    plt.subplot(1,3,2)
+    plt.imshow(lm_gt)
+    plt.subplot(1,3,3)
+    plt.imshow(lm_pred)
+    plt.show()
+
+def category_check(cat_gt, cat_pred):
+    cat_gt = cat_gt.item()
+    cat_pred = torch.argmax(cat_pred).detach().cpu().numpy().item()
+    if cat_gt == cat_pred:
+        print("correct")
+    else :
+        print("incorrect")
+    print(f"gt:\t{cat_gt}\npred:\t{cat_pred}")
+    
+    return cat_gt, cat_pred
+
+def attribute_check(attr_gt, attr_pred, thr=None):
+    
+    attr_gt = [x[0] for x in attr_gt.nonzero().numpy()]
+    
+    if thr:
+        attr_pred = torch.where(attr_pred>=thr, 1, 0).detach().cpu()
+        attr_pred = [x[0] for x in attr_pred.nonzero().numpy()]
+    else :
+        attr_pred = {idx:value for idx, value in enumerate(attr_out.detach().cpu().numpy())}
+        attr_pred = dict(sorted(attr_pred.items(), reverse=True, key=lambda x: x[1]))
+        attr_pred = list(attr_pred.keys())[:len(attr_gt)]
+        
+    # check correct
+    attr_cor = [True if x in attr_pred else False for x in attr_gt]
+    
+    return attr_gt, attr_pred, attr_cor
+
+def visibility_check(vis_gt, vis_pred, thr=0.8):
+    vis_gt = vis_gt.numpy().astype(np.int32)
+    vis_pred = torch.where(vis_pred>=thr, 1, 0).detach().cpu().numpy()
+    
+    return vis_gt, vis_pred, vis_gt==vis_pred
