@@ -11,7 +11,7 @@ def lm_transforms(transform, landmark):
     for idx, lm in enumerate(landmark):
         lm = transforms.ToPILImage()(lm)
         lm = transform(lm)
-        lm = transforms.Resize((14, 14))(lm)
+        lm = transforms.Resize((28, 28))(lm)
         if idx == 0:
             new_lm = lm
         else :
