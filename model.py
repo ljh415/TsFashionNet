@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 
 class VggBackbone(nn.Module):
-    def __init__(self, init_weight):    
+    def __init__(self, init_weight):
         super(VggBackbone, self).__init__()
-        vgg_dict = self._make_vgg_dict()
+        vgg_dict = self._make_vgg_dict(init_weight)
         self.conv1 = nn.Sequential(*vgg_dict['conv1'])
         self.conv2 = nn.Sequential(*vgg_dict['conv2'])
         self.conv3 = nn.Sequential(*vgg_dict['conv3'])
@@ -27,7 +27,7 @@ class VggBackbone(nn.Module):
         out = self.conv5(out)
         return out
     
-    def _make_vgg_dict(self):
+    def _make_vgg_dict(self, shape_stream):
         vgg = torch.hub.load('pytorch/vision:v0.10.0', 'vgg16', pretrained=True, verbose=False)
         tmp_list = []
         vgg_dict = {}
@@ -35,8 +35,11 @@ class VggBackbone(nn.Module):
             if not isinstance(child, nn.MaxPool2d):
                 tmp_list.append(child)
             else :
-                tmp_list.append(child)
                 num = len(vgg_dict)+1
+                if num == 5 and shape_stream:
+                    pass
+                else :
+                    tmp_list.append(child)
                 vgg_dict[f"conv{num}"] = tmp_list
                 tmp_list = []
         return vgg_dict
@@ -124,6 +127,8 @@ class TSFashionNet(nn.Module):
         
         # shape
         self.shape_backbone = VggBackbone(init_weight=True)
+        self.conv5_maxpool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+        
         self.shape_stream = nn.Sequential(
             nn.Conv2d(512, 256, 1),
             nn.Conv2d(256, 128, 3, padding=1),
@@ -154,7 +159,8 @@ class TSFashionNet(nn.Module):
         
         # texture
         texture_out = self.texture_backbone(x)
-        texture_out = torch.cat((texture_out, shape_feature), dim=1)
+        cat_shape = self.conv5_maxpool(shape_feature)
+        texture_out = torch.cat((texture_out, cat_shape), dim=1)
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
         
