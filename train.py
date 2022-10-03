@@ -1,5 +1,4 @@
 import os
-import sys
 import wandb
 import argparse
 
@@ -12,7 +11,7 @@ from dataset import TSDataset
 from model import TSFashionNet
 from custom_loss import LandmarkLoss
 
-from utils import get_now, checkpoint_save
+from utils import get_now, checkpoint_save, NORMALIZE_DICT
 
 def train(args):
     
@@ -51,15 +50,16 @@ def train(args):
     device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
     )
-    
     # 논문엔 크게 이 부분에 대한 설명은 없었음
     train_transform = transforms.Compose([
         transforms.Resize(resolution),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
     val_transform = transforms.Compose([
         transforms.Resize(resolution),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
     
     # dataset, loader
