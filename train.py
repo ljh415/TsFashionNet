@@ -12,6 +12,7 @@ from model import TSFashionNet
 from custom_loss import LandmarkLoss
 
 from utils import get_now, checkpoint_save, NORMALIZE_DICT
+from square_pad import SquarePad
 
 def train(args):
     
@@ -52,14 +53,18 @@ def train(args):
     )
     # 논문엔 크게 이 부분에 대한 설명은 없었음
     train_transform = transforms.Compose([
+        SquarePad(),
         transforms.Resize(resolution),
+        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
+        # transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
     val_transform = transforms.Compose([
+        SquarePad(),
         transforms.Resize(resolution),
+        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
+        # transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
     
     # dataset, loader
@@ -314,9 +319,9 @@ def train(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_path", type=str, default='/media/jaeho/SSD/datasets/deepfashion/split/')
-    parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--num_workers", type=int, default=10)
+    parser.add_argument("--epochs", type=int, default=12)
+    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--num_workers", type=int, default=15)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--resolution", type=int, default=224)
     parser.add_argument("--project", type=str, default="TSFashionNet")
