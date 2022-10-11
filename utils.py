@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import torch
 import torchvision.transforms as transforms
 
+from square_pad import SquarePad
+
 NORMALIZE_DICT = {
     'mean': [123.675, 116.28, 103.53],
     'std': [58.395, 57.12, 57.375]
@@ -16,7 +18,7 @@ def lm_transforms(transform, landmark):
     for idx, lm in enumerate(landmark):
         lm = transforms.ToPILImage()(lm)
         for t in transform.transforms:
-            if isinstance(t, transforms.Normalize):
+            if isinstance(t, transforms.Normalize) or isinstance(t, SquarePad):
                 continue
             lm = t(lm)
         lm = transforms.Resize((28, 28))(lm)
