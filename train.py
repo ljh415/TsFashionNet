@@ -6,13 +6,13 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
+from torchmetrics import Accuracy, Recall
 
 from dataset import TSDataset 
 from model import TSFashionNet
-from custom_loss import LandmarkLoss
-
-from utils import get_now, checkpoint_save, NORMALIZE_DICT
 from square_pad import SquarePad
+from custom_loss import LandmarkLoss
+from utils import get_now, checkpoint_save, NORMALIZE_DICT
 
 def train(args):
     
@@ -51,7 +51,7 @@ def train(args):
     device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
     )
-    # 논문엔 크게 이 부분에 대한 설명은 없었음
+    
     train_transform = transforms.Compose([
         SquarePad(),
         transforms.Resize(resolution),
@@ -66,6 +66,10 @@ def train(args):
         transforms.ToTensor(),
         # transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
+    
+    # acc
+    top_3_acc = Accuracy(top_k=3).to(device)
+    top_3_recall = Recall(top_k=3).to(device)
     
     # dataset, loader
     train_dataset = TSDataset(train_path, transform=train_transform)
@@ -103,6 +107,7 @@ def train(args):
             "validation": []
         }
     }
+    
     
     lm_criterion = LandmarkLoss().to(device)
     vis_criterion = nn.BCELoss().to(device)
@@ -190,6 +195,8 @@ def train(args):
         model.train()
         
         step = 0
+        running_train_category_acc = 0
+        running_train_attr_recall = 0
         
         now_lr = lr_scheduler.optimizer.param_groups[0]['lr']
         running_train_loss = 0
@@ -207,6 +214,14 @@ def train(args):
             
             vis_out, loc_out, category_out, attr_out = model(img_batch, shape=False)
             
+            # acc
+            batch_category_acc = top_3_acc(category_out, category_batch)
+            running_train_category_acc += batch_category_acc.detach().cpu().item()
+            
+            batch_attr_recall = top_3_recall(attr_out, attribute_batch.type(torch.int16))
+            running_train_attr_recall += batch_attr_recall.detach().cpu().item()
+
+            # loss
             lm_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
             vis_loss = vis_criterion(vis_out, visibility_batch)
             cat_loss = category_criterion(category_out, category_batch)
@@ -226,11 +241,13 @@ def train(args):
             step += 1
             
             status = (
-                "\r> epoch: {:3d} > step: {:3d} > loss: {:.3f}, lr: {} ".format(
+                "\r> epoch: {:3d} > step: {:3d} > lr: {}, loss: {:.3f}, cat acc: {:.2f}, attr recall: {:.4f}  ".format(
                                 epoch+1,
                                 step,
-                                running_train_loss / (batch_idx+1),
                                 now_lr,
+                                running_train_loss / (batch_idx+1),
+                                running_train_category_acc / (batch_idx+1),
+                                running_train_attr_recall / (batch_idx+1)
                             )
             )
             
@@ -243,6 +260,9 @@ def train(args):
         category_loss = running_category_loss / len(train_dataloader)
         attribute_loss = running_attribute_loss / len(train_dataloader)
         
+        train_cat_acc = running_train_category_acc / len(train_dataloader)
+        train_attr_recall = running_train_attr_recall / len(train_dataloader)
+        
         loss_dict['train']['train'].append(train_loss)
         loss_dict['train']['landmark'].append(landmark_loss)
         loss_dict['train']['visibility'].append(visibility_loss)
@@ -251,6 +271,8 @@ def train(args):
         
         
         ## validate  #########
+        running_val_category_acc = 0
+        running_val_attr_recall = 0
         running_val_loss = 0
         running_landmark_val_loss, running_visibility_val_loss, running_category_val_loss, running_attribute_val_loss = 0, 0, 0, 0
         
@@ -265,6 +287,14 @@ def train(args):
                 
                 vis_out, loc_out, category_out, attr_out = model(img_batch, shape=False)
                 
+                # acc
+                batch_category_acc = top_3_acc(category_out, category_batch)
+                running_val_category_acc += batch_category_acc.detach().cpu().item()
+                
+                batch_attr_recall = top_3_recall(attr_out, attribute_batch.type(torch.int16))
+                running_val_attr_recall += batch_attr_recall
+                
+                # loss
                 lm_val_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
                 vis_val_loss = vis_criterion(vis_out, visibility_batch)
                 cat_val_loss = category_criterion(category_out, category_batch)
@@ -284,8 +314,16 @@ def train(args):
         validation_category_loss = running_category_val_loss / len(valid_dataloader)
         validation_attribute_loss = running_attribute_val_loss / len(valid_dataloader)
         
+        val_cat_acc = running_val_category_acc / len(valid_dataloader)
+        val_attr_recall = running_val_attr_recall / len(valid_dataloader)
         
-        print("> Validation loss : {:3f}\n".format(validation_loss))
+        
+        print("> Validation loss : {:3f}, cat acc: {:2f}, attr recall: {:4f}\n".format(
+            validation_loss, 
+            val_cat_acc,
+            val_attr_recall
+            )
+        )
         
         loss_dict['validation']['validation'].append(validation_loss)
         loss_dict['validation']['landmark'].append(validation_landmark_loss)
@@ -302,11 +340,15 @@ def train(args):
         if args.wandb:
             wandb_status = {
                 "lr" : now_lr,
+                "train_category_acc": train_cat_acc,
+                "train_attribute_recall": train_attr_recall,
                 "train_attribute": attribute_loss,
                 "train_category": category_loss,
                 "train_landmark": landmark_loss,
                 "train_visibility": visibility_loss,
                 "train_loss": train_loss,
+                "valid_category_acc": val_cat_acc,
+                "valid_attribute_recall": val_attr_recall,
                 "valid_attribute": validation_attribute_loss,
                 "valid_category": validation_category_loss,
                 "valid_landmark": validation_landmark_loss,
