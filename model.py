@@ -116,8 +116,10 @@ class TSFashionNet(nn.Module):
         # texture
         self.texture_backbone = VggBackbone(init_weight=False)
         self.texture_stream = nn.Sequential(
-            nn.Conv2d(1024, 2048, 3, padding=0),
-            nn.Conv2d(2048, 4096, 3, padding=1),
+            nn.Conv2d(1024, 2048, 3, padding='valid'),
+            nn.ReLU(),
+            nn.Conv2d(2048, 4096, 3, padding='same'),
+            nn.ReLU(),
             nn.Dropout(0.5),
             nn.AdaptiveAvgPool2d((1, 1))
         )
@@ -131,8 +133,11 @@ class TSFashionNet(nn.Module):
         
         self.shape_stream = nn.Sequential(
             nn.Conv2d(512, 256, 1),
+            nn.ReLU(),
             nn.Conv2d(256, 128, 3, padding=1),
-            nn.Conv2d(128, 256, 1)
+            nn.ReLU(),
+            nn.Conv2d(128, 256, 1),
+            nn.ReLU(),
         )
         
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
@@ -140,7 +145,9 @@ class TSFashionNet(nn.Module):
         
         self.location = nn.Sequential(
             nn.ConvTranspose2d(256, 256, 4, stride=2),
-            nn.Conv2d(256, 8, 3)
+            nn.ReLU(),
+            nn.Conv2d(256, 8, 3),
+            nn.ReLU(),
         )
     
     def forward(self, x, shape=False):
@@ -159,7 +166,7 @@ class TSFashionNet(nn.Module):
         
         # texture
         texture_out = self.texture_backbone(x)
-        cat_shape = self.conv5_maxpool(shape_feature)
+        cat_shape = self.conv5_maxpool(shape_feature).detach()
         texture_out = torch.cat((texture_out, cat_shape), dim=1)
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
