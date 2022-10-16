@@ -116,9 +116,9 @@ class TSFashionNet(nn.Module):
         # texture
         self.texture_backbone = VggBackbone(init_weight=False)
         self.texture_stream = nn.Sequential(
-            nn.Conv2d(1024, 2048, 3, padding='valid'),
+            nn.Conv2d(1024, 2048, 3, padding=0),
             nn.ReLU(),
-            nn.Conv2d(2048, 4096, 3, padding='same'),
+            nn.Conv2d(2048, 4096, 3, padding=1),
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.AdaptiveAvgPool2d((1, 1))
