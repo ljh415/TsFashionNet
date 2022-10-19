@@ -194,6 +194,8 @@ class TSDataset(Dataset):
         
         # 논문에서는 46개라고 했는데 확인해본 결과 총 48개의 라벨이 존재
         attribute = torch.Tensor([1 if x == 1 else 0 for x in data_dict['attr']])
+        # attribute = torch.Tensor([1 if x != -1 else 0 for x in data_dict['attr']])
+        
         
         if crop:
             bbox = data_dict['bbox']
