@@ -3,13 +3,6 @@ import torch.nn as nn
 
 import numpy as np
 import sys
-# def landmark_loss(loc_out, vis_out, gt):
-#     loss = 0
-#     for idx, v in enumerate(vis_out):
-#         if v:
-#             ll = loc_out[idx] - gt[idx]
-#             loss += sum(torch.norm(torch.Tensor(ll), dim=1, p=2))
-#     return loss
 
 class LandmarkLoss(nn.Module):
     def __init__(self):
