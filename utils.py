@@ -41,6 +41,7 @@ def checkpoint_save(model, save_dir, epoch, loss):
         "epoch": epoch,
         "model_state_dict": model.state_dict(),
     }, save_path)
+    print(f"model saved : {save_path}\n")
     
 def add_weight_heatmap(img, landmark, alpha=0.3, plot=True):
     height, width = img.size
