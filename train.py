@@ -126,10 +126,13 @@ def train(args):
     
     # #### shape먼저 3epoch
     for epoch in range(3):
+    # for epoch in range(epochs):
         model.train()
         
-        shape_loss = 0
+        # shape_loss = 0
         step = 0
+        running_shape_loss = 0
+        # running_landmark_loss, running_visibility_loss = 0, 0
         
         for batch_idx, (img_batch, _, _, visibility_batch, landmark_batch) in enumerate(train_dataloader):
             
@@ -141,12 +144,16 @@ def train(args):
             
             vis_out, loc_out = model(img_batch, shape=True)  # training only shape biased stream
 
+            # loss
             lm_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
             vis_loss = vis_criterion(vis_out, visibility_batch)
             
             loss = lm_loss + vis_loss
             
-            shape_loss += loss.detach().cpu().numpy()
+            # loss calc
+            running_shape_loss += loss.detach().cpu().numpy().item()
+            # running_landmark_loss += lm_loss.detach().cpu().numpy().item()
+            # running_visibility_loss += vis_loss.detach().cpu().numpy().item()
             
             loss.backward()
             optimizer.step()
@@ -156,15 +163,22 @@ def train(args):
                 "\r> epoch: {:3d} > step: {:3d} > loss: {:.3f}, lr: {} ".format(
                                 epoch+1,
                                 step,
-                                shape_loss/(batch_idx+1),
+                                running_shape_loss/(batch_idx+1),
                                 lr,
                             )
             )
 
             print(status, end="")
         print()
+        
+        shape_loss = running_shape_loss / len(train_dataloader)
+        # landmark_loss = running_landmark_loss / len(train_dataloader)
+        # visibility_loss = running_visibility_loss / len(train_dataloader)
+        
         ## validate  #########
         running_val_loss = 0
+        # running_landmark_val_loss, running_visibility_val_loss = 0, 0
+        
         with torch.no_grad():
             model.eval()
             for img_batch, _, _, visibility_batch, landmark_batch in valid_dataloader:
@@ -175,17 +189,31 @@ def train(args):
                 
                 vis_out, loc_out = model(img_batch, shape=True)
                 
-                lm_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
-                vis_loss = vis_criterion(vis_out, visibility_batch)
+                lm_val_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
+                vis_val_loss = vis_criterion(vis_out, visibility_batch)
                 
-                val_loss = lm_loss + vis_loss
+                val_loss = lm_val_loss + vis_val_loss
                 
                 running_val_loss += val_loss.item()
+                # running_landmark_val_loss += lm_val_loss.item()
+                # running_visibility_val_loss += vis_val_loss.item()
                 
         val_loss = running_val_loss / len(valid_dataloader)
         
         print("Validation loss : {:3f}\n".format(val_loss))
         
+        # if epoch % args.freq_checkpoint == 0:
+        #     checkpoint_save(model, save_dir, epoch, val_loss)
+        # if args.wandb:
+        #     wandb.log({
+        #         "train_loss": shape_loss,
+        #         "train_vis_loss": visibility_loss,
+        #         "train_lm_loss": landmark_loss,
+        #         "val_loss": val_loss,
+        #         "val_vis_loss": running_visibility_val_loss / len(valid_dataloader),
+        #         "val_lm_loss": running_landmark_val_loss / len(valid_dataloader),
+        #     })
+    
     ###### first 3 epochs, train only shape biased stream
     
     print(f"{'='*20} training all model {'='*20}")
@@ -362,7 +390,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_path", type=str, default='/media/jaeho/SSD/datasets/deepfashion/split/')
     parser.add_argument("--epochs", type=int, default=12)
-    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--num_workers", type=int, default=15)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--resolution", type=int, default=224)
