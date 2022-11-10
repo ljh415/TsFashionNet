@@ -85,6 +85,8 @@ def landmark_check(img, lm_out, landmark):
     plt.subplot(1,3,3)
     plt.imshow(lm_pred)
     plt.show()
+    
+    return upsized_lm
 
 def category_check(cat_gt, cat_pred):
     cat_gt = cat_gt.item()
