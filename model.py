@@ -28,7 +28,7 @@ class VggBackbone(nn.Module):
         return out
     
     def _make_vgg_dict(self, shape_stream):
-        vgg = torch.hub.load('pytorch/vision:v0.10.0', 'vgg16', pretrained=True, verbose=False)
+        vgg = torch.hub.load('pytorch/vision:v0.10.0', 'vgg16_bn', pretrained=True, verbose=False)
         tmp_list = []
         vgg_dict = {}
         for name, child in vgg._modules['features'].named_children():
@@ -48,67 +48,7 @@ class VggBackbone(nn.Module):
         if isinstance(layer, nn.Conv2d):
             torch.nn.init.kaiming_normal_(layer.weight)
             torch.nn.init.zeros_(layer.bias)
-            
-class TextureBiasedStream(nn.Module):
-    def __init__(self):
-        super(TextureBiasedStream, self).__init__()
-        self.vgg_texture = VggBackbone(init_weight=False)
-        
-        self.texture_stream = nn.Sequential(
-            nn.Conv2d(1024, 2048, 3, padding=0),
-            nn.Conv2d(2048, 4096, 3, padding=1),
-            nn.Dropout(0.5),
-            nn.AdaptiveAvgPool2d((1, 1))
-        )
-        
-        self.clothes_cls_fc = nn.Linear(4096, 46)
-        self.attr_recog_fc = nn.Linear(4096, 1000)
-        
-    def forward(self, x, shape_feature):
-        out = self.vgg_texture(x)
-        out = torch.cat((out, shape_feature), dim=1)
-        out = self.texture_stream(out)
-        out = torch.squeeze(out)
-        
-        clothes_out = self.clothes_cls_fc(out)
-        clothes_out = torch.softmax(clothes_out, dim=0)
-        
-        attr_out = self.attr_recog_fc(out)
-        attr_out = torch.sigmoid(attr_out)
-        
-        return clothes_out, attr_out
-
-class ShapedBiasedStream(nn.Module):
-    def __init__(self):
-        super(ShapedBiasedStream, self).__init__()
-        self.vgg_texture = VggBackbone(init_weight=True)
-        
-        self.shape_stream = nn.Sequential(
-            nn.Conv2d(512, 256, 1),
-            nn.Conv2d(256, 128, 3),
-            nn.Conv2d(128, 256, 1)
-        )
-        
-        self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.vis_fc = nn.Linear(256, 8)
-        
-        self.location = nn.Sequential(
-            nn.ConvTranspose2d(256, 256, 4, stride=2),
-            nn.Conv2d(256, 8, 3)
-        )
-        
-    def forward(self, x):
-        shape_feature = self.vgg_texture(x)
-        
-        out = self.shape_stream(shape_feature)
-        
-        vis_out = self.avg_pool(out)
-        vis_out = torch.squeeze(vis_out)
-        vis_out = torch.sigmoid(vis_out)
-        
-        loc_out = self.location(out)
-        
-        return shape_feature, vis_out, loc_out
+    
     
 class TSFashionNet(nn.Module):
     def __init__(self):
@@ -117,8 +57,10 @@ class TSFashionNet(nn.Module):
         self.texture_backbone = VggBackbone(init_weight=False)
         self.texture_stream = nn.Sequential(
             nn.Conv2d(1024, 2048, 3, padding=0),
+            nn.BatchNorm2d(2048),
             nn.ReLU(),
             nn.Conv2d(2048, 4096, 3, padding=1),
+            nn.BatchNorm2d(4096),
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.AdaptiveAvgPool2d((1, 1))
@@ -133,10 +75,13 @@ class TSFashionNet(nn.Module):
         
         self.shape_stream = nn.Sequential(
             nn.Conv2d(512, 256, 1),
+            nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.Conv2d(256, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.Conv2d(128, 256, 1),
+            nn.BatchNorm2d(256),
             nn.ReLU(),
         )
         
@@ -166,7 +111,7 @@ class TSFashionNet(nn.Module):
         
         # texture
         texture_out = self.texture_backbone(x)
-        cat_shape = self.conv5_maxpool(shape_feature).detach()
+        cat_shape = self.conv5_maxpool(shape_feature).clone().detach()
         texture_out = torch.cat((texture_out, cat_shape), dim=1)
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
