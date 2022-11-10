@@ -1,6 +1,10 @@
 import os
 import wandb
+import random
 import argparse
+import numpy as np
+import torch.backends.cudnn as cudnn
+
 
 import torch
 import torch.nn as nn
@@ -13,6 +17,14 @@ from model import TSFashionNet
 from square_pad import SquarePad
 from custom_loss import LandmarkLoss
 from utils import get_now, checkpoint_save, NORMALIZE_DICT
+
+torch.manual_seed(0)
+torch.cuda.manual_seed(0)
+torch.cuda.manual_seed_all(0)
+np.random.seed(0)
+cudnn.benchmark = False
+cudnn.deterministic = True
+random.seed(0)
 
 def train(args):
     
@@ -55,14 +67,14 @@ def train(args):
     train_transform = transforms.Compose([
         SquarePad(),
         transforms.Resize(resolution),
-        transforms.RandomHorizontalFlip(),
+        # transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         # transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
     val_transform = transforms.Compose([
         SquarePad(),
         transforms.Resize(resolution),
-        transforms.RandomHorizontalFlip(),
+        # transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         # transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
@@ -132,7 +144,7 @@ def train(args):
         # shape_loss = 0
         step = 0
         running_shape_loss = 0
-        # running_landmark_loss, running_visibility_loss = 0, 0
+        running_landmark_loss, running_visibility_loss = 0, 0
         
         for batch_idx, (img_batch, _, _, visibility_batch, landmark_batch) in enumerate(train_dataloader):
             
@@ -152,8 +164,8 @@ def train(args):
             
             # loss calc
             running_shape_loss += loss.detach().cpu().numpy().item()
-            # running_landmark_loss += lm_loss.detach().cpu().numpy().item()
-            # running_visibility_loss += vis_loss.detach().cpu().numpy().item()
+            running_landmark_loss += lm_loss.detach().cpu().numpy().item()
+            running_visibility_loss += vis_loss.detach().cpu().numpy().item()
             
             loss.backward()
             optimizer.step()
@@ -167,6 +179,13 @@ def train(args):
                                 lr,
                             )
             )
+            
+            # if args.wandb and batch_idx % 50 == 0 :
+            #     wandb.log({
+            #         "shape_stream-train_lm_loss": running_landmark_loss/(batch_idx+1),
+            #         "shape_stream-train_vis_loss": running_visibility_loss/(batch_idx+1),
+            #         "shape_stream-train_total_loss": running_shape_loss/(batch_idx+1),
+            #     })
 
             print(status, end="")
         print()
@@ -177,11 +196,11 @@ def train(args):
         
         ## validate  #########
         running_val_loss = 0
-        # running_landmark_val_loss, running_visibility_val_loss = 0, 0
+        running_landmark_val_loss, running_visibility_val_loss = 0, 0
         
         with torch.no_grad():
             model.eval()
-            for img_batch, _, _, visibility_batch, landmark_batch in valid_dataloader:
+            for batch_idx, (img_batch, _, _, visibility_batch, landmark_batch) in enumerate(valid_dataloader):
                 
                 img_batch = img_batch.to(device)
                 visibility_batch = visibility_batch.to(device)
@@ -195,8 +214,15 @@ def train(args):
                 val_loss = lm_val_loss + vis_val_loss
                 
                 running_val_loss += val_loss.item()
-                # running_landmark_val_loss += lm_val_loss.item()
-                # running_visibility_val_loss += vis_val_loss.item()
+                running_landmark_val_loss += lm_val_loss.item()
+                running_visibility_val_loss += vis_val_loss.item()
+            
+                # if args.wandb and batch_idx % 50 == 0 :
+                #     wandb.log({
+                #         "shape_stream-val_lm_loss": running_landmark_val_loss/(batch_idx+1),
+                #         "shape_stream-val_vis_loss": running_visibility_val_loss/(batch_idx+1),
+                #         "shape_stream-val_total_loss": running_val_loss/(batch_idx+1),
+                #     })
                 
         val_loss = running_val_loss / len(valid_dataloader)
         
