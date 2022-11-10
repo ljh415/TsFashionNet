@@ -17,6 +17,7 @@ from model import TSFashionNet
 from square_pad import SquarePad
 from custom_loss import LandmarkLoss
 from utils import get_now, checkpoint_save, NORMALIZE_DICT
+from config import config
 
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
@@ -26,22 +27,22 @@ cudnn.benchmark = False
 cudnn.deterministic = True
 random.seed(0)
 
-def train(args):
+def train():
     
     # wandbv init ####################
-    if args.wandb:
-        if args.name:
-            wandb_name = f"{args.name}_{get_now(time=True)}"
+    if config['wandb']:
+        if config['name']:
+            wandb_name = f"{config['name']}_{get_now(time=True)}"
         else :
             wandb_name = f"TSFashionNet_{get_now(time=True)}"
     
-        wandb.init(entity="ljh415", project=args.project, dir='/media/jaeho/HDD/wandb/', name=wandb_name)
+        wandb.init(entity="ljh415", project=config['project'], dir='/media/jaeho/HDD/wandb/', name=wandb_name)
     
     # checkpoint save directory ######
-    save_dir = os.path.join(args.ckpt_savedir, args.project)
+    save_dir = os.path.join(config['ckpt_savedir'], config['project'])
         
-    if args.name:
-        save_dir = os.path.join(save_dir, f"{args.name}_{get_now(time=True)}")
+    if config['name']:
+        save_dir = os.path.join(save_dir, f"{config['name']}_{get_now(time=True)}")
     else :
         save_dir = os.path.join(save_dir, f"TSFashionNet_{get_now(time=True)}")
     
@@ -50,15 +51,15 @@ def train(args):
     
     ######
     
-    train_path = os.path.join(args.data_path, 'train.pickle')
-    valid_path = os.path.join(args.data_path, 'valid.pickle')
+    train_path = os.path.join(config['data_path'], 'train.pickle')
+    valid_path = os.path.join(config['data_path'], 'valid.pickle')
     
-    epochs = args.epochs
-    batch_size = args.batch_size
-    num_workers = args.num_workers
+    epochs = config['epochs']
+    batch_size = config['batch_size']
+    num_workers = config['num_workers']
     
-    lr = args.lr
-    resolution = (args.resolution, args.resolution)
+    lr = config['lr']
+    resolution = (config['resolution'], config['resolution'])
     
     device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
@@ -388,10 +389,10 @@ def train(args):
         
         lr_scheduler.step(epoch+1)
         
-        if epoch % args.freq_checkpoint == 0 :
+        if epoch % config['freq_checkpoint'] == 0 :
             checkpoint_save(model, save_dir, epoch, validation_loss)
         
-        if args.wandb:
+        if config['wandb']:
             wandb_status = {
                 "lr" : now_lr,
                 "train_category_acc": train_cat_acc,
@@ -428,4 +429,6 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    train(args)
+    config.update(vars(args))
+    
+    train()
