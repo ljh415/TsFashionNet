@@ -21,7 +21,7 @@ def lm_transforms(transform, landmark):
             if isinstance(t, transforms.Normalize) or isinstance(t, SquarePad):
                 continue
             lm = t(lm)
-        lm = transforms.Resize((28, 28))(lm)
+        # lm = transforms.Resize((28, 28))(lm)
         if idx == 0:
             new_lm = lm
         else :
