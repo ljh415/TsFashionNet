@@ -181,12 +181,12 @@ def train():
                             )
             )
             
-            # if args.wandb and batch_idx % 50 == 0 :
-            #     wandb.log({
-            #         "shape_stream-train_lm_loss": running_landmark_loss/(batch_idx+1),
-            #         "shape_stream-train_vis_loss": running_visibility_loss/(batch_idx+1),
-            #         "shape_stream-train_total_loss": running_shape_loss/(batch_idx+1),
-            #     })
+            if args.wandb and batch_idx % 50 == 0 :
+                wandb.log({
+                    "shape_stream-train_lm_loss": running_landmark_loss/(batch_idx+1),
+                    "shape_stream-train_vis_loss": running_visibility_loss/(batch_idx+1),
+                    "shape_stream-train_total_loss": running_shape_loss/(batch_idx+1),
+                })
 
             print(status, end="")
         print()
