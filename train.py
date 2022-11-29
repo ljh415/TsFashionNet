@@ -36,7 +36,8 @@ def train():
         else :
             wandb_name = f"TSFashionNet_{get_now(time=True)}"
     
-        wandb.init(entity="ljh415", project=config['project'], dir='/media/jaeho/HDD/wandb/', name=wandb_name)
+        wandb.init(entity="ljh415", project=config['project'], dir='/media/jaeho/HDD/wandb/',
+                   name=wandb_name, config=config)
     
     # checkpoint save directory ######
     save_dir = os.path.join(config['ckpt_savedir'], config['project'])
@@ -68,14 +69,14 @@ def train():
     train_transform = transforms.Compose([
         SquarePad(),
         transforms.Resize(resolution),
-        # transforms.RandomHorizontalFlip(),
+        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         # transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
     val_transform = transforms.Compose([
         SquarePad(),
         transforms.Resize(resolution),
-        # transforms.RandomHorizontalFlip(),
+        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         # transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
@@ -181,17 +182,18 @@ def train():
                             )
             )
             
-            if args.wandb and batch_idx % 50 == 0 :
-                wandb.log({
-                    "shape_stream-train_lm_loss": running_landmark_loss/(batch_idx+1),
-                    "shape_stream-train_vis_loss": running_visibility_loss/(batch_idx+1),
-                    "shape_stream-train_total_loss": running_shape_loss/(batch_idx+1),
-                })
+            # if args.logging_shape_train:
+            #     if args.wandb and batch_idx % 50 == 0 :
+            #         wandb.log({
+            #             "shape_stream-train_lm_loss": running_landmark_loss/(batch_idx+1),
+            #             "shape_stream-train_vis_loss": running_visibility_loss/(batch_idx+1),
+            #             "shape_stream-train_total_loss": running_shape_loss/(batch_idx+1),
+            #         })
 
             print(status, end="")
         print()
         
-        shape_loss = running_shape_loss / len(train_dataloader)
+        # shape_loss = running_shape_loss / len(train_dataloader)
         # landmark_loss = running_landmark_loss / len(train_dataloader)
         # visibility_loss = running_visibility_loss / len(train_dataloader)
         
@@ -233,16 +235,16 @@ def train():
         #     checkpoint_save(model, save_dir, epoch, val_loss)
         # if args.wandb:
         #     wandb.log({
-        #         "train_loss": shape_loss,
-        #         "train_vis_loss": visibility_loss,
-        #         "train_lm_loss": landmark_loss,
+        #         "train_loss": running_shape_loss / len(train_dataloader),
+        #         "train_vis_loss": running_visibility_loss / len(train_dataloader),
+        #         "train_lm_loss": running_landmark_loss / len(train_dataloader),
         #         "val_loss": val_loss,
         #         "val_vis_loss": running_visibility_val_loss / len(valid_dataloader),
         #         "val_lm_loss": running_landmark_val_loss / len(valid_dataloader),
         #     })
-    
+        
     ###### first 3 epochs, train only shape biased stream
-    
+
     print(f"{'='*20} training all model {'='*20}")
     
     ## train all stream
@@ -413,6 +415,13 @@ def train():
             
             wandb.log(wandb_status)
 
+# def test():
+#     result_dict = defaultdict(list)
+    
+#     for idx, data in tqdm(enumerate(test_dataset, total=len(test_dataset)))
+    
+#     pass
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_path", type=str, default='/media/jaeho/SSD/datasets/deepfashion/split/')
@@ -426,6 +435,7 @@ if __name__ == "__main__":
     parser.add_argument("--name", type=str, default=None)
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--freq_checkpoint", type=int, default=1)
+    parser.add_argument("--logging_shape_train", action="store_true")
     
     args = parser.parse_args()
     
