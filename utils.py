@@ -88,14 +88,15 @@ def landmark_check(img, lm_out, landmark):
     
     return upsized_lm
 
-def category_check(cat_gt, cat_pred):
+def category_check(cat_gt, cat_pred, verbose=False):
     cat_gt = cat_gt.item()
     cat_pred = torch.argmax(cat_pred).detach().cpu().numpy().item()
-    if cat_gt == cat_pred:
-        print("correct")
-    else :
-        print("incorrect")
-    print(f"gt:\t{cat_gt}\npred:\t{cat_pred}")
+    if verbose:
+        if cat_gt == cat_pred:
+            print("correct")
+        else :
+            print("incorrect")
+        print(f"gt:\t{cat_gt}\npred:\t{cat_pred}")
     
     return cat_gt, cat_pred
 
