@@ -423,6 +423,7 @@ def test():
     for idx, data in tqdm(enumerate(test_dataset), total=len(test_dataset)):
         img, cat, att, _, _ = data
         att = att.to(device)
+        cat = cat.squeeze().to(device)
         img_tensor = trans(img).to(device)
         img_tensor = torch.unsqueeze(img_tensor, axis=0)
         _, _, cat_out, attr_out = model(img_tensor, shape=False)
@@ -463,8 +464,8 @@ if __name__ == "__main__":
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--freq_checkpoint", type=int, default=1)
     parser.add_argument("--logging_shape_train", action="store_true")
-    parser.add_argument("--topk_recall", type=int)
-    parser.add_argument("--topk_acc", type=int)
+    parser.add_argument("--topk_recall", type=int, default=0)
+    parser.add_argument("--topk_acc", type=int, default=0)
     parser.add_argument("--ckpt", type=str, default=None)
     
     args = parser.parse_args()
