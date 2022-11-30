@@ -420,8 +420,8 @@ def test():
     
     result_dict = defaultdict(lambda : defaultdict(list))
     
-    for idx, data in tqdm(enumerate(test_dataset, total=len(test_dataset))):
-        img, cat, att, _ = data
+    for idx, data in tqdm(enumerate(test_dataset), total=len(test_dataset)):
+        img, cat, att, _, _ = data
         att = att.to(device)
         img_tensor = trans(img).to(device)
         img_tensor = torch.unsqueeze(img_tensor, axis=0)
@@ -470,5 +470,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     config.update(vars(args))
-    
-    train()
+    if args.mode == 'train':
+        train()
+    elif args.mode == 'test':
+        if args.ckpt is None:
+            raise Exception("Check the checkpoint path")
+        test()
