@@ -13,12 +13,12 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torchmetrics import Accuracy, Recall
 
-from config import config
+from config import config, upper_class_name
 from dataset import TSDataset 
 from model import TSFashionNet
 from square_pad import SquarePad
 from custom_loss import LandmarkLoss
-from utils import get_now, checkpoint_save, category_check, NORMALIZE_DICT
+from utils import get_now, checkpoint_save, make_metric_dict, calc_class_recall, calc_metric
 
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
@@ -401,53 +401,47 @@ def test():
     ])
     test_dataset = TSDataset('/media/jaeho/SSD/datasets/deepfashion/split/test.pickle')
 
-    metric_dict = defaultdict(dict)
-    if config['topk_recall'] == 0 and config['topk_acc'] == 0:
-        metric_dict['recall'][3] = Recall(top_k=3).to(device)
-        metric_dict['recall'][5] = Recall(top_k=5).to(device)
-        metric_dict['acc'][3] = Accuracy(top_k=3).to(device)
-        metric_dict['acc'][5] = Accuracy(top_k=5).to(device)
-    else :
-        if config['topk_recall'] == 3:
-            metric_dict['recall'][3] = Recall(top_k=3).to(device)
-        elif config['topk_recall'] == 5:
-            metric_dict['recall'][5] = Recall(top_k=5).to(device)
-            
-        if config['topk_acc'] == 3:
-            metric_dict['acc'][3] = Accuracy(top_k=3).to(device)
-        elif config['topk_acc'] == 5:
-            metric_dict['acc'][5] = Accuracy(top_k=5).to(device)
-    
+    # set metric
+    metric_dict = make_metric_dict()
     result_dict = defaultdict(lambda : defaultdict(list))
+    class_recall_dict = defaultdict(lambda : defaultdict(int))
     
+    # inference, calc
     for idx, data in tqdm(enumerate(test_dataset), total=len(test_dataset)):
         img, cat, att, _, _ = data
-        att = att.to(device)
-        cat = cat.squeeze().to(device)
         img_tensor = trans(img).to(device)
         img_tensor = torch.unsqueeze(img_tensor, axis=0)
-        _, _, cat_out, attr_out = model(img_tensor, shape=False)
+        _, _, cat_out, att_out = model(img_tensor, shape=False)
         
-        # category
-        cat_out = torch.unsqueeze(cat_out, axis=0)
-        cat = torch.unsqueeze(cat, axis=0)
-        for topk, metric in metric_dict['acc'].items():
-            score = metric(cat_out, cat.type(torch.int16)).cpu()
-            result_dict['category'][f"top{topk}_acc"].append(score)
+        # calc metric
+        calc_dict = calc_metric(metric_dict, cat_out, att_out, cat, att)
         
-        # attribute
-        attr_out = torch.unsqueeze(attr_out, axis=0)
-        att = torch.unsqueeze(att, axis=0)
-        for topk, metric in metric_dict['recall'].items():
-            score = metric(attr_out, att.type(torch.int16)).cpu()
-            result_dict['attribute'][f"top{topk}_recall"].append(score)
+        for key, score in calc_dict.items():
+            task, metric_name = key.split("-")
+            result_dict[task][metric_name].append(score)
         
+        # calc recall about classes
+        tp_dict = calc_class_recall(att, att_out)
+        for key, values in tp_dict.items():
+            for value in values:
+                class_recall_dict[key][value] += 1
+        
+        
+    # show
     for task, score_dict in result_dict.items():
-        print("=="*20)
+        print("=="*20)  
         print(task)
+        
         for metric, score_list in score_dict.items():
             print(f"{metric}:\t{np.mean(score_list):.2f}")
         print()
+    
+    print("Class Recall")
+    for upper_class, gt_counts in class_recall_dict['gt'].items():
+        print("=="*30)
+        print(f"{upper_class_name[upper_class]}")
+        print(f"top3 : {class_recall_dict['top3_tp'][upper_class] / gt_counts}")
+        print(f"top5 : {class_recall_dict['top5_tp'][upper_class] / gt_counts}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -464,9 +458,8 @@ if __name__ == "__main__":
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--freq_checkpoint", type=int, default=1)
     parser.add_argument("--logging_shape_train", action="store_true")
-    parser.add_argument("--topk_recall", type=int, default=0)
-    parser.add_argument("--topk_acc", type=int, default=0)
     parser.add_argument("--ckpt", type=str, default=None)
+    # parser.add_argument("--att_map", type=str, default='./resources/attribute_map.pickle')
     
     args = parser.parse_args()
     
