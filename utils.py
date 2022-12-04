@@ -1,11 +1,14 @@
 import os
 import cv2
+import pickle
 import datetime
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import defaultdict
 
 import torch
 import torchvision.transforms as transforms
+from torchmetrics import Recall, Accuracy
 
 from square_pad import SquarePad
 
@@ -13,6 +16,10 @@ NORMALIZE_DICT = {
     'mean': [123.675, 116.28, 103.53],
     'std': [58.395, 57.12, 57.375]
 }
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+with open('./resources/attribute_map.pickle', 'rb') as f:
+    ATT_MAP = pickle.load(f)
 
 def lm_transforms(transform, landmark):
     for idx, lm in enumerate(landmark):
@@ -33,7 +40,6 @@ def get_now(time=False):
     if time:
         return now.strftime("%y%m%d-%H%M")
     return now.strftime("%y%m%d")
-
 
 def checkpoint_save(model, save_dir, epoch, loss):
     save_path = os.path.join(save_dir, "checkpoint-{:03d}-{:.3f}.pth".format(epoch, loss))
@@ -122,3 +128,61 @@ def visibility_check(vis_gt, vis_pred, thr=0.8):
     vis_pred = torch.where(vis_pred>=thr, 1, 0).detach().cpu().numpy()
     
     return vis_gt, vis_pred, vis_gt==vis_pred
+
+def make_metric_dict():
+    metric_dict = defaultdict(dict)
+    metric_dict['recall'][3] = Recall(top_k=3).to(device)
+    metric_dict['recall'][5] = Recall(top_k=5).to(device)
+    metric_dict['acc'][3] = Accuracy(top_k=3).to(device)
+    metric_dict['acc'][5] = Accuracy(top_k=5).to(device)
+    
+    return metric_dict
+
+def calc_class_recall(att_gt, att_pred):
+
+        
+    def _calc_tp(k, gt_idx, pred):
+        
+        pred_att_dict = {idx:value for idx, value in enumerate(pred.cpu().detach().numpy())}
+        pred_att_dict = dict(sorted(pred_att_dict.items(), key=lambda x : x[1], reverse=True))
+        
+        topk_pred = [x[0] for x in list(pred_att_dict.items())[:k]]
+        topk_tp = set(topk_pred).intersection(set(gt_idx))
+        
+        return topk_tp
+    
+    att_gt_idx = [idx for idx, value in enumerate(att_gt) if value != 0]
+    top3_tp = _calc_tp(3, att_gt_idx, att_pred)
+    top5_tp = _calc_tp(5, att_gt_idx, att_pred)
+    
+    tp_dict = {
+        'gt': [ATT_MAP[x] for x in att_gt_idx],
+        'top3_tp': [ATT_MAP[x] for x in top3_tp],
+        'top5_tp': [ATT_MAP[x] for x in top5_tp]
+    }
+    
+    return tp_dict
+
+def calc_metric(metric_dict, cat_pred, att_pred, cat_gt, att_gt):
+    
+    result_dict = {}
+    
+    # category
+    cat_gt = cat_gt.to(device)
+    cat_pred = torch.unsqueeze(cat_pred, axis=0)
+    for k, metric in metric_dict['acc'].items():
+        score = metric(cat_pred, cat_gt.type(torch.int16)).cpu()
+        result_dict[f'category-top{k}_acc'] = score
+    
+    # attribute
+    
+    # total recall
+    att_gt = att_gt.to(device)
+    att_pred = torch.unsqueeze(att_pred, axis=0)
+    att_gt = torch.unsqueeze(att_gt, axis=0)
+    
+    for k, metric in metric_dict['recall'].items():
+        score = metric(att_pred, att_gt.type(torch.int16)).cpu()
+        result_dict[f'attribute-top{k}_recall'] = score
+    
+    return result_dict
