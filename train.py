@@ -474,7 +474,6 @@ def test():
     
     print("Class Recall")
     
-    class_recall_dict['gt']
     for upper_class, gt_counts in class_recall_dict['gt'].items():
         print("=="*30)
         print(f"{upper_class_name[upper_class]}")
