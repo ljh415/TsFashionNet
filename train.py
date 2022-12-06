@@ -55,11 +55,9 @@ def train():
     
     train_path = os.path.join(config['data_path'], 'train.pickle')
     valid_path = os.path.join(config['data_path'], 'valid.pickle')
-    
     epochs = config['epochs']
     batch_size = config['batch_size']
     num_workers = config['num_workers']
-    
     lr = config['lr']
     resolution = (config['resolution'], config['resolution'])
     
@@ -70,21 +68,23 @@ def train():
     train_transform = transforms.Compose([
         SquarePad(),
         transforms.Resize(resolution),
-        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         # transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
     val_transform = transforms.Compose([
         SquarePad(),
         transforms.Resize(resolution),
-        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         # transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
     
     # acc
-    top_3_acc = Accuracy(top_k=3).to(device)
-    top_3_recall = Recall(top_k=3).to(device)
+    # new
+    metric_dict = make_metric_dict()
+    
+    # prev
+    # top_3_acc = Accuracy(top_k=3).to(device)
+    # top_3_recall = Recall(top_k=3).to(device)
     
     # dataset, loader
     train_dataset = TSDataset(train_path, transform=train_transform)
@@ -120,12 +120,10 @@ def train():
     
     print(f"{'='*20} training only shape {'='*20}")
     
-    # #### shape먼저 3epoch
+    #### shape먼저 3epoch
     for epoch in range(3):
-    # for epoch in range(epochs):
         model.train()
         
-        # shape_loss = 0
         step = 0
         running_shape_loss = 0
         running_landmark_loss, running_visibility_loss = 0, 0
@@ -174,10 +172,6 @@ def train():
 
             print(status, end="")
         print()
-        
-        # shape_loss = running_shape_loss / len(train_dataloader)
-        # landmark_loss = running_landmark_loss / len(train_dataloader)
-        # visibility_loss = running_visibility_loss / len(train_dataloader)
         
         ## validate  #########
         running_val_loss = 0
@@ -234,8 +228,10 @@ def train():
         model.train()
         
         step = 0
-        running_train_category_acc = 0
-        running_train_attr_recall = 0
+        # running_train_category_acc, running_train_attr_recall = 0, 0
+        
+        running_train_category_acc3, running_train_category_acc5 = 0, 0
+        running_train_attr_recall3, running_train_attr_recall5 = 0, 0
         
         now_lr = lr_scheduler.optimizer.param_groups[0]['lr']
         running_train_loss = 0
@@ -254,11 +250,20 @@ def train():
             vis_out, loc_out, category_out, attr_out = model(img_batch, shape=False)
             
             # acc
-            batch_category_acc = top_3_acc(category_out, category_batch)
-            running_train_category_acc += batch_category_acc.detach().cpu().item()
+            ## new
+            calc_dict = calc_metric(metric_dict, category_out, attr_out, category_batch, attribute_batch)
+            running_train_category_acc3 += calc_dict['category-top3_acc'].detach().cpu().item()
+            running_train_category_acc5 += calc_dict['category-top5_acc'].detach().cpu().item()
             
-            batch_attr_recall = top_3_recall(attr_out, attribute_batch.type(torch.int16))
-            running_train_attr_recall += batch_attr_recall.detach().cpu().item()
+            running_train_attr_recall3 += calc_dict['attribute-top3_recall'].detach().cpu().item()
+            running_train_attr_recall5 += calc_dict['attribute-top5_recall'].detach().cpu().item()
+            
+            ## prev
+            # batch_category_acc = top_3_acc(category_out, category_batch)
+            # running_train_category_acc += batch_category_acc.detach().cpu().item()
+            
+            # batch_attr_recall = top_3_recall(attr_out, attribute_batch.type(torch.int16))
+            # running_train_attr_recall += batch_attr_recall.detach().cpu().item()
 
             # loss
             lm_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
@@ -280,13 +285,16 @@ def train():
             step += 1
             
             status = (
-                "\r> epoch: {:3d} > step: {:3d} > lr: {}, loss: {:.3f}, cat acc: {:.2f}, attr recall: {:.4f}  ".format(
+                "\r> epoch: {:3d} > step: {:3d} > lr: {}, loss: {:.3f}, cat acc3: {:.2f}, cat acc5: {:.2f}, attr recall3: {:.4f}, attr recall5: {:.4f}  ".format(
                                 epoch+1,
                                 step,
                                 now_lr,
                                 running_train_loss / (batch_idx+1),
-                                running_train_category_acc / (batch_idx+1),
-                                running_train_attr_recall / (batch_idx+1)
+                                running_train_category_acc3 / (batch_idx+1),
+                                running_train_category_acc5 / (batch_idx+1),
+                                running_train_attr_recall3 / (batch_idx+1),
+                                running_train_attr_recall5 / (batch_idx+1)
+                                
                             )
             )
             
@@ -299,12 +307,17 @@ def train():
         category_loss = running_category_loss / len(train_dataloader)
         attribute_loss = running_attribute_loss / len(train_dataloader)
         
-        train_cat_acc = running_train_category_acc / len(train_dataloader)
-        train_attr_recall = running_train_attr_recall / len(train_dataloader)
+        train_cat_acc3 = running_train_category_acc3 / len(train_dataloader)
+        train_cat_acc5 = running_train_category_acc5 / len(train_dataloader)
+        
+        train_attr_recall3 = running_train_attr_recall3 / len(train_dataloader)
+        train_attr_recall5 = running_train_attr_recall5 / len(train_dataloader)
         
         ## validate  #########
-        running_val_category_acc = 0
-        running_val_attr_recall = 0
+        # running_val_category_acc, running_val_attr_recall = 0, 0
+        running_val_category_acc3, running_val_category_acc5 = 0, 0
+        running_val_attr_recall3, running_val_attr_recall5 = 0, 0
+        
         running_val_loss = 0
         running_landmark_val_loss, running_visibility_val_loss, running_category_val_loss, running_attribute_val_loss = 0, 0, 0, 0
         
@@ -320,11 +333,20 @@ def train():
                 vis_out, loc_out, category_out, attr_out = model(img_batch, shape=False)
                 
                 # acc
-                batch_category_acc = top_3_acc(category_out, category_batch)
-                running_val_category_acc += batch_category_acc.detach().cpu().item()
+                ## new
+                calc_dict = calc_metric(metric_dict, category_out, attr_out, category_batch, attribute_batch)
+                running_val_category_acc3 += calc_dict['category-top3_acc'].detach().cpu().item()
+                running_val_category_acc5 += calc_dict['category-top5_acc'].detach().cpu().item()
                 
-                batch_attr_recall = top_3_recall(attr_out, attribute_batch.type(torch.int16))
-                running_val_attr_recall += batch_attr_recall
+                running_val_attr_recall3 += calc_dict['attribute-top3_recall'].detach().cpu().item()
+                running_val_attr_recall5 += calc_dict['attribute-top5_recall'].detach().cpu().item()
+                
+                ## prev
+                # batch_category_acc = top_3_acc(category_out, category_batch)
+                # running_val_category_acc += batch_category_acc.detach().cpu().item()
+                
+                # batch_attr_recall = top_3_recall(attr_out, attribute_batch.type(torch.int16))
+                # running_val_attr_recall += batch_attr_recall
                 
                 # loss
                 lm_val_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
@@ -346,14 +368,19 @@ def train():
         validation_category_loss = running_category_val_loss / len(valid_dataloader)
         validation_attribute_loss = running_attribute_val_loss / len(valid_dataloader)
         
-        val_cat_acc = running_val_category_acc / len(valid_dataloader)
-        val_attr_recall = running_val_attr_recall / len(valid_dataloader)
+        val_cat_acc3 = running_val_category_acc3 / len(valid_dataloader)
+        val_cat_acc5 = running_val_category_acc5 / len(valid_dataloader)
         
+        val_attr_recall3 = running_val_attr_recall3 / len(valid_dataloader)
+        val_attr_recall5 = running_val_attr_recall5 / len(valid_dataloader)
+         
         
-        print("> Validation loss : {:3f}, cat acc: {:2f}, attr recall: {:4f}\n".format(
+        print("> Validation loss : {:3f}, cat acc3: {:2f},  cat acc5: {:2f}, attr recall3: {:4f}, attr recall5: {:4f}\n".format(
             validation_loss, 
-            val_cat_acc,
-            val_attr_recall
+            val_cat_acc3,
+            val_cat_acc5,
+            val_attr_recall3,
+            val_attr_recall5
             )
         )
         
@@ -365,15 +392,19 @@ def train():
         if config['wandb']:
             wandb_status = {
                 "lr" : now_lr,
-                "train_category_acc": train_cat_acc,
-                "train_attribute_recall": train_attr_recall,
+                "train_category_acc3": train_cat_acc3,
+                "train_category_acc5": train_cat_acc5,
+                "train_attribute_recall3": train_attr_recall3,
+                "train_attribute_recall5": train_attr_recall5,
                 "train_attribute": attribute_loss,
                 "train_category": category_loss,
                 "train_landmark": landmark_loss,
                 "train_visibility": visibility_loss,
                 "train_loss": train_loss,
-                "valid_category_acc": val_cat_acc,
-                "valid_attribute_recall": val_attr_recall,
+                "valid_category_acc3": val_cat_acc3,
+                "valid_category_acc5": val_cat_acc5,
+                "valid_attribute_recall3": val_attr_recall3,
+                "valid_attribute_recall5": val_attr_recall5,
                 "valid_attribute": validation_attribute_loss,
                 "valid_category": validation_category_loss,
                 "valid_landmark": validation_landmark_loss,
@@ -399,15 +430,18 @@ def test():
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
-    test_dataset = TSDataset('/media/jaeho/SSD/datasets/deepfashion/split/test.pickle')
+    test_dataset = TSDataset('/media/jaeho/SSD/datasets/deepfashion/split/train.pickle')
 
+    if config['test_num'] is None:
+        config['test_num'] = len(test_dataset)
+        
     # set metric
     metric_dict = make_metric_dict()
     result_dict = defaultdict(lambda : defaultdict(list))
     class_recall_dict = defaultdict(lambda : defaultdict(int))
     
     # inference, calc
-    for idx, data in tqdm(enumerate(test_dataset), total=len(test_dataset)):
+    for idx, data in tqdm(enumerate(test_dataset), total=config['test_num']):
         img, cat, att, _, _ = data
         img_tensor = trans(img).to(device)
         img_tensor = torch.unsqueeze(img_tensor, axis=0)
@@ -426,6 +460,8 @@ def test():
             for value in values:
                 class_recall_dict[key][value] += 1
         
+        if idx == config['test_num']:
+            break
         
     # show
     for task, score_dict in result_dict.items():
@@ -437,6 +473,8 @@ def test():
         print()
     
     print("Class Recall")
+    
+    class_recall_dict['gt']
     for upper_class, gt_counts in class_recall_dict['gt'].items():
         print("=="*30)
         print(f"{upper_class_name[upper_class]}")
@@ -459,7 +497,7 @@ if __name__ == "__main__":
     parser.add_argument("--freq_checkpoint", type=int, default=1)
     parser.add_argument("--logging_shape_train", action="store_true")
     parser.add_argument("--ckpt", type=str, default=None)
-    # parser.add_argument("--att_map", type=str, default='./resources/attribute_map.pickle')
+    parser.add_argument("--test_num", type=int, default=None)
     
     args = parser.parse_args()
     
