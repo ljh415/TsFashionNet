@@ -8,6 +8,7 @@ from collections import defaultdict
 
 import torch
 import torchvision.transforms as transforms
+import torchvision.transforms.functional as TF
 from torchmetrics import Recall, Accuracy
 
 from square_pad import SquarePad
@@ -18,17 +19,18 @@ NORMALIZE_DICT = {
 }
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-with open('./resources/attribute_map.pickle', 'rb') as f:
+with open('/media/jaeho/SSD/paper/resources/attribute_map.pickle', 'rb') as f:
     ATT_MAP = pickle.load(f)
 
-def lm_transforms(transform, landmark):
+def lm_transforms(transform, landmark, flip_flag):
     for idx, lm in enumerate(landmark):
         lm = transforms.ToPILImage()(lm)
         for t in transform.transforms:
             if isinstance(t, transforms.Normalize) or isinstance(t, SquarePad):
                 continue
             lm = t(lm)
-        # lm = transforms.Resize((28, 28))(lm)
+            if flip_flag:
+                lm = TF.hflip(lm)
         if idx == 0:
             new_lm = lm
         else :
@@ -139,8 +141,6 @@ def make_metric_dict():
     return metric_dict
 
 def calc_class_recall(att_gt, att_pred):
-
-        
     def _calc_tp(k, gt_idx, pred):
         
         pred_att_dict = {idx:value for idx, value in enumerate(pred.cpu().detach().numpy())}
@@ -163,20 +163,19 @@ def calc_class_recall(att_gt, att_pred):
     
     return tp_dict
 
-def calc_metric(metric_dict, cat_pred, att_pred, cat_gt, att_gt):
-    
+def calc_metric(metric_dict, cat_pred, att_pred, cat_gt, att_gt, mode="train"):
+
     result_dict = {}
     
     # category
     cat_gt = cat_gt.to(device)
     cat_pred = torch.unsqueeze(cat_pred, axis=0)
+        
     for k, metric in metric_dict['acc'].items():
         score = metric(cat_pred, cat_gt.type(torch.int16)).cpu()
         result_dict[f'category-top{k}_acc'] = score
     
     # attribute
-    
-    # total recall
     att_gt = att_gt.to(device)
     att_pred = torch.unsqueeze(att_pred, axis=0)
     att_gt = torch.unsqueeze(att_gt, axis=0)
