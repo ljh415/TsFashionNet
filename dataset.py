@@ -5,6 +5,7 @@ from PIL import Image
 
 import torch
 import torch.nn.functional as F
+import torchvision.transforms.functional as TF
 from torch.utils.data import Dataset
 
 from utils import lm_transforms
@@ -110,11 +111,17 @@ class TSDataset(Dataset):
         if crop:
             bbox = data_dict['bbox']
             img = img.crop(bbox)
-            # img = Image.fromarray(np.array(img)[bbox[1]:bbox[3], bbox[0]:bbox[2]])
             landmark = landmark[..., bbox[1]:bbox[3], bbox[0]:bbox[2]]
         
         if self.transform:
+            # 이미지 transform..
             img = self.transform(img)
-            landmark = lm_transforms(self.transform, landmark)
+            flip_flag = np.random.randint(2)
+            if flip_flag :
+                img = TF.hflip(img)
+                visibility = torch.tensor([visibility[1], visibility[0], visibility[3], visibility[2],
+                                           visibility[5], visibility[4], visibility[7], visibility[6]])
+            # landmark transform...
+            landmark = lm_transforms(self.transform, landmark, flip_flag)
         
         return img, category, attribute, visibility, landmark
