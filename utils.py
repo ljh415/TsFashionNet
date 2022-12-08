@@ -26,7 +26,7 @@ def lm_transforms(transform, landmark, flip_flag):
     for idx, lm in enumerate(landmark):
         lm = transforms.ToPILImage()(lm)
         for t in transform.transforms:
-            if isinstance(t, transforms.Normalize) or isinstance(t, SquarePad):
+            if isinstance(t, transforms.Normalize): # or isinstance(t, SquarePad):
                 continue
             lm = t(lm)
             if flip_flag:
