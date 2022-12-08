@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from itertools import islice
 
 class VggBackbone(nn.Module):
     def __init__(self, init_weight):
@@ -10,13 +11,13 @@ class VggBackbone(nn.Module):
         self.conv3 = nn.Sequential(*vgg_dict['conv3'])
         self.conv4 = nn.Sequential(*vgg_dict['conv4'])
         self.conv5 = nn.Sequential(*vgg_dict['conv5'])
-        if init_weight:
+        if init_weight:  # shape
             self.conv1.apply(self._init_weight)
             self.conv2.apply(self._init_weight)
             self.conv3.apply(self._init_weight)
             self.conv4.apply(self._init_weight)
             self.conv5.apply(self._init_weight)
-        else :
+        else :  # texture
             self.conv5.apply(self._init_weight)
             
     def forward(self, x):
@@ -55,6 +56,9 @@ class TSFashionNet(nn.Module):
         super(TSFashionNet, self).__init__()
         # texture
         self.texture_backbone = VggBackbone(init_weight=False)
+        for key, inner_seq in islice(self.texture_backbone._modules.items(), 4):
+            for layer_num, layer_ in inner_seq.named_parameters():
+                layer_.require_grad = False
         self.texture_stream = nn.Sequential(
             nn.Conv2d(1024, 2048, 3, padding=0),
             nn.BatchNorm2d(2048),
@@ -85,8 +89,7 @@ class TSFashionNet(nn.Module):
             nn.ReLU(),
         )
         
-        self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.vis_fc = nn.Linear(256, 8)
+        self.vis_fc = nn.Linear(50176, 8)
         
         self.location = nn.Sequential(
             nn.ConvTranspose2d(256, 256, 4, stride=2),
@@ -99,8 +102,7 @@ class TSFashionNet(nn.Module):
         # shape
         shape_feature = self.shape_backbone(x)
         shape_out = self.shape_stream(shape_feature)
-        vis_out = self.avg_pool(shape_out)
-        vis_out = torch.squeeze(vis_out)
+        vis_out = torch.flatten(shape_out, start_dim=1)
         vis_out = self.vis_fc(vis_out)
         vis_out = torch.sigmoid(vis_out)
         
