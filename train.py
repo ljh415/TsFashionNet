@@ -69,13 +69,11 @@ def train():
         SquarePad(),
         transforms.Resize(resolution),
         transforms.ToTensor(),
-        # transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
     val_transform = transforms.Compose([
         SquarePad(),
         transforms.Resize(resolution),
         transforms.ToTensor(),
-        # transforms.Normalize(NORMALIZE_DICT['mean'], NORMALIZE_DICT['std'])
     ])
     
     # acc
@@ -87,8 +85,8 @@ def train():
     # top_3_recall = Recall(top_k=3).to(device)
     
     # dataset, loader
-    train_dataset = TSDataset(train_path, transform=train_transform)
-    valid_dataset = TSDataset(valid_path, transform=val_transform)
+    train_dataset = TSDataset(train_path, transform=train_transform, flip=config['flip'])
+    valid_dataset = TSDataset(valid_path, transform=val_transform, flip=config['flip'])
     
     train_dataloader = DataLoader(
         train_dataset,
@@ -162,13 +160,13 @@ def train():
                             )
             )
             
-            # if args.logging_shape_train:
-            #     if args.wandb and batch_idx % 50 == 0 :
-            #         wandb.log({
-            #             "shape_stream-train_lm_loss": running_landmark_loss/(batch_idx+1),
-            #             "shape_stream-train_vis_loss": running_visibility_loss/(batch_idx+1),
-            #             "shape_stream-train_total_loss": running_shape_loss/(batch_idx+1),
-            #         })
+            if args.logging_shape_train:
+                if args.wandb and batch_idx % 50 == 0 :
+                    wandb.log({
+                        "shape_stream-train_lm_loss": running_landmark_loss/(batch_idx+1),
+                        "shape_stream-train_vis_loss": running_visibility_loss/(batch_idx+1),
+                        "shape_stream-train_total_loss": running_shape_loss/(batch_idx+1),
+                    })
 
             print(status, end="")
         print()
@@ -195,29 +193,31 @@ def train():
                 running_val_loss += val_loss.item()
                 running_landmark_val_loss += lm_val_loss.item()
                 running_visibility_val_loss += vis_val_loss.item()
-            
-                # if args.wandb and batch_idx % 50 == 0 :
-                #     wandb.log({
-                #         "shape_stream-val_lm_loss": running_landmark_val_loss/(batch_idx+1),
-                #         "shape_stream-val_vis_loss": running_visibility_val_loss/(batch_idx+1),
-                #         "shape_stream-val_total_loss": running_val_loss/(batch_idx+1),
-                #     })
+
+                if args.logging_shape_train:
+                    if args.wandb and batch_idx % 50 == 0 :
+                        wandb.log({
+                            "shape_stream-val_lm_loss": running_landmark_val_loss/(batch_idx+1),
+                            "shape_stream-val_vis_loss": running_visibility_val_loss/(batch_idx+1),
+                            "shape_stream-val_total_loss": running_val_loss/(batch_idx+1),
+                        })
                 
         val_loss = running_val_loss / len(valid_dataloader)
         
         print("Validation loss : {:3f}\n".format(val_loss))
         
-        # if epoch % args.freq_checkpoint == 0:
-        #     checkpoint_save(model, save_dir, epoch, val_loss)
-        # if args.wandb:
-        #     wandb.log({
-        #         "train_loss": running_shape_loss / len(train_dataloader),
-        #         "train_vis_loss": running_visibility_loss / len(train_dataloader),
-        #         "train_lm_loss": running_landmark_loss / len(train_dataloader),
-        #         "val_loss": val_loss,
-        #         "val_vis_loss": running_visibility_val_loss / len(valid_dataloader),
-        #         "val_lm_loss": running_landmark_val_loss / len(valid_dataloader),
-        #     })
+        if args.logging_shape_train:
+            if epoch % args.freq_checkpoint == 0:
+                checkpoint_save(model, save_dir, epoch, val_loss)
+            if args.wandb:
+                wandb.log({
+                    "train_loss": running_shape_loss / len(train_dataloader),
+                    "train_vis_loss": running_visibility_loss / len(train_dataloader),
+                    "train_lm_loss": running_landmark_loss / len(train_dataloader),
+                    "val_loss": val_loss,
+                    "val_vis_loss": running_visibility_val_loss / len(valid_dataloader),
+                    "val_lm_loss": running_landmark_val_loss / len(valid_dataloader),
+                })
         
     ###### first 3 epochs, train only shape biased stream
 
@@ -486,7 +486,7 @@ if __name__ == "__main__":
     parser.add_argument("--data_path", type=str, default='/media/jaeho/SSD/datasets/deepfashion/split/')
     parser.add_argument("--epochs", type=int, default=12)
     parser.add_argument("--batch_size", type=int, default=16)
-    parser.add_argument("--num_workers", type=int, default=32)
+    parser.add_argument("--num_workers", type=int, default=16)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--resolution", type=int, default=224)
     parser.add_argument("--project", type=str, default="TSFashionNet")
@@ -497,6 +497,7 @@ if __name__ == "__main__":
     parser.add_argument("--logging_shape_train", action="store_true")
     parser.add_argument("--ckpt", type=str, default=None)
     parser.add_argument("--test_num", type=int, default=None)
+    parser.add_argument("--flip", action="store_true")
     
     args = parser.parse_args()
     
