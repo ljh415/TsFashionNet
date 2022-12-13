@@ -67,12 +67,12 @@ def train():
     
     train_transform = transforms.Compose([
         SquarePad(),
-        transforms.Resize((resolution, resolution)),
+        transforms.Resize(resolution),
         transforms.ToTensor(),
     ])
     val_transform = transforms.Compose([
         SquarePad(),
-        transforms.Resize((resolution, resolution)),
+        transforms.Resize(resolution),
         transforms.ToTensor(),
     ])
     
