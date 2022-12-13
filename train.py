@@ -67,12 +67,12 @@ def train():
     
     train_transform = transforms.Compose([
         SquarePad(),
-        transforms.Resize(resolution),
+        transforms.Resize((resolution, resolution)),
         transforms.ToTensor(),
     ])
     val_transform = transforms.Compose([
         SquarePad(),
-        transforms.Resize(resolution),
+        transforms.Resize((resolution, resolution)),
         transforms.ToTensor(),
     ])
     
@@ -430,7 +430,7 @@ def test():
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
-    test_dataset = TSDataset('/media/jaeho/SSD/datasets/deepfashion/split/train.pickle')
+    test_dataset = TSDataset('/media/jaeho/SSD/datasets/deepfashion/split/test.pickle')
 
     if config['test_num'] is None:
         config['test_num'] = len(test_dataset)
@@ -448,7 +448,7 @@ def test():
         _, _, cat_out, att_out = model(img_tensor, shape=False)
         
         # calc metric
-        calc_dict = calc_metric(metric_dict, cat_out, att_out, cat, att)
+        calc_dict = calc_metric(metric_dict, cat_out, att_out, cat, att, mode=config['mode'])
         
         for key, score in calc_dict.items():
             task, metric_name = key.split("-")
