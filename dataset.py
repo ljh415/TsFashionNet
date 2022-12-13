@@ -93,7 +93,7 @@ class TSDataset(Dataset):
                 target[joint_id][img_y[0] : img_y[1], img_x[0]:img_x[1]] = g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
         return target, visibility
 
-    def __getitem__(self, index, crop=True):
+    def __getitem__(self, index):
         img_path, data_dict = self.raw_data[index]
         landmark_info = data_dict['landmark']
         
@@ -106,13 +106,12 @@ class TSDataset(Dataset):
         category = torch.LongTensor(data_dict['category'])
         
         # 논문에서는 46개라고 했는데 확인해본 결과 총 48개의 라벨이 존재
-        # attribute = torch.Tensor([1 if x == 1 else 0 for x in data_dict['attr']])
-        attribute = torch.Tensor([1 if x != -1 else 0 for x in data_dict['attr']])
+        attribute = torch.Tensor([1 if x == 1 else 0 for x in data_dict['attr']])
+        # attribute = torch.Tensor([1 if x != -1 else 0 for x in data_dict['attr']])
         
-        if crop:
-            bbox = data_dict['bbox']
-            img = img.crop(bbox)
-            landmark = landmark[..., bbox[1]:bbox[3], bbox[0]:bbox[2]]
+        bbox = data_dict['bbox']
+        img = img.crop(bbox)
+        landmark = landmark[..., bbox[1]:bbox[3], bbox[0]:bbox[2]]
         
         if self.transform:
             # 이미지 transform..
