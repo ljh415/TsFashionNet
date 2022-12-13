@@ -1,5 +1,6 @@
 import os
 import cv2
+import copy
 import pickle
 import datetime
 import numpy as np
@@ -25,12 +26,12 @@ with open('/media/jaeho/SSD/paper/resources/attribute_map.pickle', 'rb') as f:
 def lm_transforms(transform, landmark, flip_flag):
     for idx, lm in enumerate(landmark):
         lm = transforms.ToPILImage()(lm)
+        if flip_flag:
+            lm = TF.hflip(lm)
         for t in transform.transforms:
-            if isinstance(t, transforms.Normalize): # or isinstance(t, SquarePad):
+            if isinstance(t, transforms.Normalize):
                 continue
             lm = t(lm)
-            if flip_flag:
-                lm = TF.hflip(lm)
         if idx == 0:
             new_lm = lm
         else :
@@ -52,16 +53,27 @@ def checkpoint_save(model, save_dir, epoch, loss):
     print(f"model saved : {save_path}\n")
     
 def add_weight_heatmap(img, landmark, alpha=0.3, plot=True):
-    height, width = img.size
+    isTensor = isinstance(img, torch.Tensor)
+    if isTensor:
+        # img = np.transpose(img, (1, 2, 0))
+        height, width, _ = img.shape
+    else :
+        height, width = img.size
     check_img = np.zeros(dtype=np.float32, shape=(width, height))
     
     for w in landmark:
-        check_img += w
+        if isTensor:
+            check_img = np.add(check_img, w)
+        else :
+            check_img += w
     new_h_m = np.stack([check_img*255]*3, axis=-1).astype(np.uint8)
+    if isTensor:
+        img *= 255/np.array(img).max()
     origin_image = np.array(img).astype(np.uint8)
     cam_heat = cv2.applyColorMap(new_h_m, cv2.COLORMAP_JET)
     cam_heat = cv2.cvtColor(cam_heat, cv2.COLOR_RGB2BGR)
     beta = 1 - alpha
+    
     new_img = cv2.addWeighted(cam_heat, alpha, origin_image, beta, 0)
 
     if plot:
@@ -70,31 +82,41 @@ def add_weight_heatmap(img, landmark, alpha=0.3, plot=True):
     else :
         return new_img
     
-def landmark_check(img, lm_out, landmark):
-    height, width = img.size
-    for idx, lm in enumerate(lm_out.squeeze()):
-        lm = transforms.ToPILImage()(lm)
-        lm = transforms.Resize((width, height))(lm)
-        lm = transforms.ToTensor()(lm)
-        
-        if idx == 0:
-            upsized_lm = lm
-        else :
-            upsized_lm = torch.cat([upsized_lm, lm], axis=0)
+def landmark_check(img, landmark, lm_out=None):
+    
+    if isinstance(img, torch.Tensor):
+        img = np.transpose(img, (1, 2, 0))
+        height, width, _ = img.shape
+    else :
+        height, width = img.size
+    origin_img = copy.deepcopy(img)
+    
+    if lm_out:
+        for idx, lm in enumerate(lm_out.squeeze()):
+            lm = transforms.ToPILImage()(lm)
+            lm = transforms.Resize((width, height))(lm)
+            lm = transforms.ToTensor()(lm)
+            
+            if idx == 0:
+                upsized_lm = lm
+            else :
+                upsized_lm = torch.cat([upsized_lm, lm], axis=0)
     
     lm_gt = add_weight_heatmap(img, landmark, plot=False)
-    lm_pred = add_weight_heatmap(img, upsized_lm.numpy(), plot=False)
+    if lm_out:
+        lm_pred = add_weight_heatmap(img, upsized_lm.numpy(), plot=False)
     
     plt.figure(figsize=(10, 15))
     plt.subplot(1,3,1)
-    plt.imshow(img)
+    plt.imshow(origin_img)
     plt.subplot(1,3,2)
     plt.imshow(lm_gt)
-    plt.subplot(1,3,3)
-    plt.imshow(lm_pred)
+    if lm_out:
+        plt.subplot(1,3,3)
+        plt.imshow(lm_pred)
     plt.show()
-    
-    return upsized_lm
+    if lm_out:
+        return upsized_lm
 
 def category_check(cat_gt, cat_pred, verbose=False):
     cat_gt = cat_gt.item()
