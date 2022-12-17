@@ -12,7 +12,8 @@ class LandmarkLoss(nn.Module):
             batch_loss = 0
             for idx, v in enumerate(visibility):
                 if v:
-                    batch_loss += F.mse_loss(upsampled_loc_out[batch_idx][idx],landmark_batch[batch_idx, idx], reduction='sum')
+                    batch_loss += F.mse_loss(upsampled_loc_out[batch_idx][idx],landmark_batch[batch_idx, idx],
+                                             reduction='mean')
             batch_loss_list.append(batch_loss)
         loss = sum(batch_loss_list)/len(batch_loss_list)
         return loss
