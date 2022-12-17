@@ -11,7 +11,6 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-from torchmetrics import Accuracy, Recall
 
 from config import config, upper_class_name
 from dataset import TSDataset 
@@ -251,7 +250,7 @@ def train():
             
             # acc
             ## new
-            calc_dict = calc_metric(metric_dict, category_out, attr_out, category_batch, attribute_batch)
+            calc_dict = calc_metric(metric_dict, category_out, attr_out, category_batch, attribute_batch, mode=config['mode'])
             running_train_category_acc3 += calc_dict['category-top3_acc'].detach().cpu().item()
             running_train_category_acc5 += calc_dict['category-top5_acc'].detach().cpu().item()
             
@@ -334,7 +333,7 @@ def train():
                 
                 # acc
                 ## new
-                calc_dict = calc_metric(metric_dict, category_out, attr_out, category_batch, attribute_batch)
+                calc_dict = calc_metric(metric_dict, category_out, attr_out, category_batch, attribute_batch, mode=config['mode'])
                 running_val_category_acc3 += calc_dict['category-top3_acc'].detach().cpu().item()
                 running_val_category_acc5 += calc_dict['category-top5_acc'].detach().cpu().item()
                 
