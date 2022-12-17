@@ -93,8 +93,10 @@ class TSFashionNet(nn.Module):
         
         self.location = nn.Sequential(
             nn.ConvTranspose2d(256, 256, 4, stride=2),
+            nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.Conv2d(256, 8, 3),
+            nn.BatchNorm2d(8),
             nn.ReLU(),
         )
     
