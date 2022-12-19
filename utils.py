@@ -91,7 +91,7 @@ def landmark_check(img, landmark, lm_out=None):
         height, width = img.size
     origin_img = copy.deepcopy(img)
     
-    if lm_out:
+    if lm_out is not None:
         for idx, lm in enumerate(lm_out.squeeze()):
             lm = transforms.ToPILImage()(lm)
             lm = transforms.Resize((width, height))(lm)
@@ -103,7 +103,7 @@ def landmark_check(img, landmark, lm_out=None):
                 upsized_lm = torch.cat([upsized_lm, lm], axis=0)
     
     lm_gt = add_weight_heatmap(img, landmark, plot=False)
-    if lm_out:
+    if lm_out is not None:
         lm_pred = add_weight_heatmap(img, upsized_lm.numpy(), plot=False)
     
     plt.figure(figsize=(10, 15))
@@ -111,11 +111,11 @@ def landmark_check(img, landmark, lm_out=None):
     plt.imshow(origin_img)
     plt.subplot(1,3,2)
     plt.imshow(lm_gt)
-    if lm_out:
+    if lm_out is not None:
         plt.subplot(1,3,3)
         plt.imshow(lm_pred)
     plt.show()
-    if lm_out:
+    if lm_out is not None:
         return upsized_lm
 
 def category_check(cat_gt, cat_pred, verbose=False):
