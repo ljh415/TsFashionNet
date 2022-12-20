@@ -69,7 +69,7 @@ class TSFashionNet(nn.Module):
             nn.Dropout(0.5),
             nn.AdaptiveAvgPool2d((1, 1))
         )
-        self.clothes_cls_fc = nn.Linear(4096, 48)
+        self.clothes_cls_fc = nn.Linear(4096, 46)
         self.attr_recog_fc = nn.Linear(4096, 1000)
         
         
