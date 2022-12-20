@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 from config import config, upper_class_name
 from dataset import TSDataset 
 from model import TSFashionNet
+from bit_model import BiT_TSFashionNet
 from square_pad import SquarePad
 from custom_loss import LandmarkLoss
 from utils import get_now, checkpoint_save, make_metric_dict, calc_class_recall, calc_metric
@@ -34,7 +35,7 @@ def train():
         if config['name']:
             wandb_name = f"{config['name']}_{get_now(time=True)}"
         else :
-            wandb_name = f"TSFashionNet_{get_now(time=True)}"
+            wandb_name = f"{config['backbone']}_TSFashionNet_{get_now(time=True)}"
     
         wandb.init(entity="ljh415", project=config['project'], dir='/media/jaeho/HDD/wandb/',
                    name=wandb_name, config=config)
@@ -108,7 +109,10 @@ def train():
     attribute_cretierion = nn.BCELoss().to(device)
     
     # model
-    model = TSFashionNet().to(device)
+    if config['backbone'] == 'vgg':
+        model = TSFashionNet().to(device)
+    elif config['backbone'] == 'bit' :
+        model = BiT_TSFashionNet(model_name='resnetv2_50x1_bitm_in21k').to(device)
     
     # optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -511,6 +515,7 @@ if __name__ == "__main__":
     parser.add_argument("--ckpt", type=str, default=None)
     parser.add_argument("--test_num", type=int, default=None)
     parser.add_argument("--flip", action="store_true")
+    parser.add_argument("--backbone", type=str, default='vgg')
     
     args = parser.parse_args()
     
