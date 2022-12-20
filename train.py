@@ -440,7 +440,9 @@ def test():
     class_recall_dict = defaultdict(lambda : defaultdict(int))
     
     # inference, calc
-    for idx, data in tqdm(enumerate(test_dataset), total=config['test_num']):
+    # for idx, data in tqdm(enumerate(test_dataset), total=config['test_num']):
+    for idx, data in enumerate(test_dataset):
+        
         img, cat, att, _, _ = data
         img_tensor = trans(img).to(device)
         img_tensor = torch.unsqueeze(img_tensor, axis=0)
@@ -461,6 +463,18 @@ def test():
         
         if idx == config['test_num']:
             break
+        
+        status = (
+            "\r {:6d}/{:6d}\t | top3_acc: {:.3f}, top5_acc: {:.3f}, top3_recall: {:.3f}, top5_recall: {:.3f}  ".format(
+                idx+1,
+                config['test_num'],
+                np.mean(result_dict['category']['top3_acc']),
+                np.mean(result_dict['category']['top5_acc']),
+                np.mean(result_dict['attribute']['top3_recall']),
+                np.mean(result_dict['attribute']['top5_recall']),
+            )
+        )
+        print(status, end="")
         
     # show
     for task, score_dict in result_dict.items():
