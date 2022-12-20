@@ -157,8 +157,8 @@ def make_metric_dict():
     metric_dict = defaultdict(dict)
     metric_dict['recall'][3] = Recall(top_k=3).to(device)
     metric_dict['recall'][5] = Recall(top_k=5).to(device)
-    metric_dict['acc'][3] = Accuracy(top_k=3).to(device)
-    metric_dict['acc'][5] = Accuracy(top_k=5).to(device)
+    metric_dict['acc'][3] = Accuracy(top_k=3, num_classes=46).to(device)
+    metric_dict['acc'][5] = Accuracy(top_k=5, num_classes=46).to(device)
     
     return metric_dict
 
