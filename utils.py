@@ -209,7 +209,7 @@ def calc_metric(metric_dict, cat_pred, att_pred, cat_gt, att_gt, mode="train"):
     
     return result_dict
 
-def print_config(config):
+def print_config(config, model, trainable=False):
     print(f"""
 {'=='*20}
 mode\t\t: {config['mode']}
@@ -220,5 +220,12 @@ shape_lr\t: {config['shape_lr']}
 init_lr\t\t: {config['lr']}
 milestones\t: {config['milestones']}
 batch_size\t: {config['batch_size']}
+num_of_param\t: {count_parameters(model, trainable):,}
 {'=='*20}
           """)
+
+def count_parameters(model, trainable=False):
+    if trainable:
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    else :
+        return sum(p.numel() for p in model.parameters())
