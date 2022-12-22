@@ -11,7 +11,7 @@ class GateNet(nn.Module):
         super(GateNet, self).__init__()
         self.gate = nn.Sequential(
             nn.Conv2d(4096, 1024, kernel_size=1),
-            nn.BatchNorm2d(4096),
+            nn.BatchNorm2d(1024),
             nn.ReLU()
         )
     
@@ -27,16 +27,9 @@ class BiT_TSFashionNet(nn.Module):
         self.model = timm.create_model(model_name, pretrained=True)
         self.gate = GateNet()
         
-        # self.backbone = nn.Sequential(OrderedDict(islice(self.model._modules.items(), 2)))
-        # if not init_weight:  # texture
-        #     self.backbone._modules['backbone']._modules['stages']._modules['3'].apply(self._init_weight)
-        # else :               # shape
-        #     self.backbone.apply(self._init_weight)
-        
         ### texture
         self.texture_backbone = nn.Sequential(OrderedDict(islice(self.model._modules.items(), 2)))
         # 4번째 블럭 초기화
-        print(self.texture_backbone._modules.keys())
         self.texture_backbone._modules['stages']._modules['3'].apply(self._init_weight)
         # 3번째 까지는 freeze
         for key, inner_seq in islice(self.texture_backbone._modules['stages']._modules.items(), 3):
@@ -60,7 +53,6 @@ class BiT_TSFashionNet(nn.Module):
         self.shape_backbone = nn.Sequential(OrderedDict(islice(self.model._modules.items(), 2)))
         # 다초기화
         self.shape_backbone.apply(self._init_weight)
-        
         self.shape_stream = nn.Sequential(
             nn.Conv2d(2048, 1024, 1),
             nn.BatchNorm2d(1024),
@@ -105,15 +97,8 @@ class BiT_TSFashionNet(nn.Module):
     def _init_weight(self, layer):
         if isinstance(layer, nn.Conv2d):
             torch.nn.init.kaiming_normal_(layer.weight)
-
-    def _freeze_layers(self, layer):
-        pass
     
     def forward(self, x, shape=False):
-        # x = self.backbone(x)
-        # if self.bit_classifier:
-        #     x = self.classifier(x)
-        
         ### shape
         shape_feature = self.shape_backbone(x)
         shape_out = self.shape_stream(shape_feature)
