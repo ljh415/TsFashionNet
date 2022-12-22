@@ -208,3 +208,17 @@ def calc_metric(metric_dict, cat_pred, att_pred, cat_gt, att_gt, mode="train"):
         result_dict[f'attribute-top{k}_recall'] = score
     
     return result_dict
+
+def print_config(config):
+    print(f"""
+{'=='*20}
+mode\t\t: {config['mode']}
+backbone\t: {config['backbone']}
+epochs\t\t: {config['epochs']}
+shape_epochs\t: {config['shape_epochs']}
+shape_lr\t: {config['shape_lr']}
+init_lr\t\t: {config['lr']}
+milestones\t: {config['milestones']}
+batch_size\t: {config['batch_size']}
+{'=='*20}
+          """)
