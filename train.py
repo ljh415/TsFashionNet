@@ -18,7 +18,8 @@ from model import TSFashionNet
 from bit_model import BiT_TSFashionNet
 from square_pad import SquarePad
 from custom_loss import LandmarkLoss
-from utils import get_now, checkpoint_save, make_metric_dict, calc_class_recall, calc_metric
+from utils import get_now, checkpoint_save, make_metric_dict, calc_class_recall
+from utils import calc_metric, print_config
 
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
@@ -55,10 +56,8 @@ def train():
     
     train_path = os.path.join(config['data_path'], 'train.pickle')
     valid_path = os.path.join(config['data_path'], 'valid.pickle')
-    epochs = config['epochs']
     batch_size = config['batch_size']
     num_workers = config['num_workers']
-    lr = config['lr']
     resolution = (config['resolution'], config['resolution'])
     
     device = torch.device(
@@ -85,8 +84,8 @@ def train():
     # top_3_recall = Recall(top_k=3).to(device)
     
     # dataset, loader
-    train_dataset = TSDataset(train_path, transform=train_transform, flip=config['flip'])
-    valid_dataset = TSDataset(valid_path, transform=val_transform, flip=config['flip'])
+    train_dataset = TSDataset(train_path, transform=train_transform)
+    valid_dataset = TSDataset(valid_path, transform=val_transform)
     
     train_dataloader = DataLoader(
         train_dataset,
@@ -115,14 +114,17 @@ def train():
         model = BiT_TSFashionNet(model_name='resnetv2_50x1_bitm_in21k').to(device)
     
     # optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    shape_optimizer = torch.optim.Adam(model.parameters(), lr=config['shape_lr'])
+    optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'])
     # scheduler
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=6, gamma=0.1)
+    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=config['milestones'], gamma=0.1, verbose=True)
+    
+    print_config(config)
     
     print(f"{'='*20} training only shape {'='*20}")
     
     #### shape먼저 3epoch
-    for epoch in range(3):
+    for epoch in range(config['shape_epochs']):
         model.train()
         
         step = 0
@@ -131,7 +133,7 @@ def train():
         
         for batch_idx, (img_batch, _, _, visibility_batch, landmark_batch) in enumerate(train_dataloader):
             
-            optimizer.zero_grad()
+            shape_optimizer.zero_grad()
             
             img_batch = img_batch.to(device)
             landmark_batch = landmark_batch.to(device)
@@ -151,7 +153,7 @@ def train():
             running_visibility_loss += vis_loss.detach().cpu().numpy().item()
             
             loss.backward()
-            optimizer.step()
+            shape_optimizer.step()
             step += 1
             
             status = (
@@ -159,7 +161,7 @@ def train():
                                 epoch+1,
                                 step,
                                 running_shape_loss/(batch_idx+1),
-                                lr,
+                                config['shape_lr'],
                             )
             )
             
@@ -227,7 +229,7 @@ def train():
     print(f"{'='*20} training all model {'='*20}")
     
     ## train all stream
-    for epoch in range(epochs):
+    for epoch in range(config['epochs']):
         model.train()
         
         step = 0
@@ -501,10 +503,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", type=str, default='train')
     parser.add_argument("--data_path", type=str, default='/media/jaeho/SSD/datasets/deepfashion/split/')
-    parser.add_argument("--epochs", type=int, default=12)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--num_workers", type=int, default=16)
+    parser.add_argument("--epochs", type=int, default=12)
+    parser.add_argument("--shape_epochs", type=int, default=3)
     parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument("--shape_lr", type=float, default=1e-4)
     parser.add_argument("--resolution", type=int, default=224)
     parser.add_argument("--project", type=str, default="TSFashionNet")
     parser.add_argument("--ckpt_savedir", type=str, default="/media/jaeho/HDD/ckpt")
@@ -514,10 +518,11 @@ if __name__ == "__main__":
     parser.add_argument("--logging_shape_train", action="store_true")
     parser.add_argument("--ckpt", type=str, default=None)
     parser.add_argument("--test_num", type=int, default=None)
-    parser.add_argument("--flip", action="store_true")
     parser.add_argument("--backbone", type=str, default='vgg')
+    parser.add_argument("--milestones", type=str, default='6')
     
     args = parser.parse_args()
+    args.milestones = list(map(int, args.milestones.split(',')))
     
     config.update(vars(args))
     if args.mode == 'train':
