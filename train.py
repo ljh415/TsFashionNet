@@ -479,7 +479,7 @@ def test():
             )
         )
         print(status, end="")
-        
+    print()
     # show
     for task, score_dict in result_dict.items():
         print("=="*20)  
