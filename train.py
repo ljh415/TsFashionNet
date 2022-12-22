@@ -32,22 +32,17 @@ random.seed(0)
 def train():
     
     # wandbv init ####################
+    if config['name']:
+        wandb_name = f"{config['name']}_{get_now(time=True)}"
+    else :
+        wandb_name = f"{config['backbone']}_TSFashionNet_{get_now(time=True)}"
+            
     if config['wandb']:
-        if config['name']:
-            wandb_name = f"{config['name']}_{get_now(time=True)}"
-        else :
-            wandb_name = f"{config['backbone']}_TSFashionNet_{get_now(time=True)}"
-    
         wandb.init(entity="ljh415", project=config['project'], dir='/media/jaeho/HDD/wandb/',
                    name=wandb_name, config=config)
     
     # checkpoint save directory ######
-    save_dir = os.path.join(config['ckpt_savedir'], config['project'])
-        
-    if config['name']:
-        save_dir = os.path.join(save_dir, f"{config['name']}_{get_now(time=True)}")
-    else :
-        save_dir = os.path.join(save_dir, f"TSFashionNet_{get_now(time=True)}")
+    save_dir = os.path.join(config['ckpt_savedir'], config['project'], wandb_name)
     
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -119,7 +114,7 @@ def train():
     # scheduler
     lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=config['milestones'], gamma=0.1, verbose=True)
     
-    print_config(config)
+    print_config(config, model, trainable=True)
     
     print(f"{'='*20} training only shape {'='*20}")
     
@@ -425,7 +420,10 @@ def test():
         "cuda" if torch.cuda.is_available() else "cpu"
     )
     
-    model = TSFashionNet().to(device)
+    if config['backbone'] == 'vgg':
+        model = TSFashionNet().to(device)
+    elif config['backbone'] == 'bit':
+        model = BiT_TSFashionNet(model_name='resnetv2_50x1_bitm_in21k').to(device)
     
     ckpt_dict = torch.load(config['ckpt'])
     model.load_state_dict(ckpt_dict['model_state_dict'])
