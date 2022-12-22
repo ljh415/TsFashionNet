@@ -20,7 +20,7 @@ LANDMARK_MAP = ['left_collar', 'right_collar', 'left_sleeve', 'right_sleeve',
 IMG_DIR = '/media/jaeho/SSD/datasets/deepfashion/img-001/'
 
 class TSDataset(Dataset):
-    def __init__(self, data_path, transform=None, flip=False):
+    def __init__(self, data_path, transform=None, flip=True):
         super(TSDataset, self).__init__()
         
         self.transform = transform
