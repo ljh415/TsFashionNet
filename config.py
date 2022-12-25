@@ -13,3 +13,21 @@ upper_class_name ={
     4 : 'part',
     5 : 'style'
 }
+
+sweep_configuration = {
+    'method': 'bayes',
+    'name': f'TSFashionNet_sweep_{get_now(True)}',
+    'project': 'tsfashionnet',
+    'entity': 'ljh415',
+    'metric': {
+        'goal': 'minimize',
+        'name': 'validation_loss'
+    },
+    'parameters': {
+        'batch_size': {'values':[16, 32, 64]},
+        'epochs': {'min':12, 'max':20},
+        'lr': {'min':1e-5, 'max':1e-3},
+        'shape_epochs': {'min': 3, 'max': 5},
+        'shape_lr': {'min':1e-4, 'max':1e-3},
+    }
+}
