@@ -228,7 +228,6 @@ epochs\t\t: {config['epochs']}
 shape_epochs\t: {config['shape_epochs']}
 shape_lr\t: {config['shape_lr']}
 init_lr\t\t: {config['lr']}
-milestones\t: {config['milestones']}
 batch_size\t: {config['batch_size']}
 num_of_param\t: {count_parameters(model, trainable):,}
 {'=='*20}
