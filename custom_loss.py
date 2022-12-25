@@ -2,9 +2,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class LandmarkLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, reduction):
         super(LandmarkLoss, self).__init__()
-    
+        self.reduction = reduction
+        
     def forward(self, loc_out, visibility_batch, landmark_batch):
         batch_loss_list = []
         upsampled_loc_out = F.interpolate(loc_out, (224, 224))
@@ -13,7 +14,7 @@ class LandmarkLoss(nn.Module):
             for idx, v in enumerate(visibility):
                 if v:
                     batch_loss += F.mse_loss(upsampled_loc_out[batch_idx][idx],landmark_batch[batch_idx, idx],
-                                             reduction='mean')
+                                             reduction=self.reduction)
             batch_loss_list.append(batch_loss)
         loss = sum(batch_loss_list)/len(batch_loss_list)
         return loss
