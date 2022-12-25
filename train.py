@@ -10,7 +10,7 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
-from config import config, upper_class_name
+from config import config, upper_class_name, sweep_configuration
 from dataset import TSDataset 
 from model import TSFashionNet
 from bit_model import BiT_TSFashionNet, PreTrained_Dict
@@ -23,6 +23,12 @@ fix_seed()
 
 def train():
     
+    batch_size = config['batch_size']
+    lr = config['lr']
+    epochs = config['epochs']
+    shape_lr = config['shape_lr']
+    shape_epochs = config['shape_epochs']
+    
     # wandbv init ####################
     if config['name']:
         wandb_name = f"{config['name']}_{get_now(time=True)}"
@@ -30,7 +36,18 @@ def train():
         wandb_name = f"{config['backbone']}_TSFashionNet_{get_now(time=True)}"
             
     if config['wandb']:
-        wandb.init(entity="ljh415", project=config['project'], dir='/media/jaeho/HDD/wandb/',
+        if config['sweep']:
+            wandb.init(entity='ljh415', project=config['project'], dir='/media/jaeho/HDD/wandb/',
+                       config=config)
+            w_config = wandb.config
+            batch_size = w_config.batch_size
+            lr = w_config.lr
+            epochs = w_config.epochs
+            shape_lr = w_config.shape_lr
+            shape_epochs = w_config.shape_epochs
+            
+        else:
+            wandb.init(entity="ljh415", project=config['project'], dir='/media/jaeho/HDD/wandb/',
                    name=wandb_name, config=config)
     
     # checkpoint save directory ######
@@ -43,7 +60,6 @@ def train():
     
     train_path = os.path.join(config['data_path'], 'train.pickle')
     valid_path = os.path.join(config['data_path'], 'valid.pickle')
-    batch_size = config['batch_size']
     num_workers = config['num_workers']
     resolution = (config['resolution'], config['resolution'])
     
@@ -98,20 +114,27 @@ def train():
     if config['backbone'] == 'vgg':
         model = TSFashionNet().to(device)
     elif config['backbone'] == 'bit' :
-        model = BiT_TSFashionNet(model_name='resnetv2_50x1_bitm_in21k').to(device)
+        model = BiT_TSFashionNet(model_name=config['bit_model_name']).to(device)
     
     # optimizer
-    shape_optimizer = torch.optim.Adam(model.parameters(), lr=config['shape_lr'])
-    optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'])
+    shape_optimizer = torch.optim.Adam(model.parameters(), lr=shape_lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     # scheduler
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=config['milestones'], gamma=0.1, verbose=True)
+    if config['sweep']:
+        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min', factor=0.1,
+                                                                  patience=2, verbose=True)
+    else :
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=config['milestones'], gamma=0.1, verbose=True)
     
-    print_config(config, model, trainable=True)
+    if config['sweep']:
+        print_config(w_config, model, trainable=True)
+    else :
+        print_config(config, model, trainable=True)
     
     print(f"{'='*20} training only shape {'='*20}")
     
     #### shape먼저 3epoch
-    for epoch in range(config['shape_epochs']):
+    for epoch in range(shape_epochs):
         model.train()
         
         step = 0
@@ -148,7 +171,7 @@ def train():
                                 epoch+1,
                                 step,
                                 running_shape_loss/(batch_idx+1),
-                                config['shape_lr'],
+                                shape_lr,
                             )
             )
             
@@ -216,7 +239,7 @@ def train():
     print(f"{'='*20} training all model {'='*20}")
     
     ## train all stream
-    for epoch in range(config['epochs']):
+    for epoch in range(epochs):
         model.train()
         
         step = 0
@@ -457,9 +480,6 @@ def test():
             for value in values:
                 class_recall_dict[key][value] += 1
         
-        if idx == config['test_num']:
-            break
-        
         status = (
             "\r {:6d}/{:6d}\t | top3_acc: {:.3f}, top5_acc: {:.3f}, top3_recall: {:.3f}, top5_recall: {:.3f}  ".format(
                 idx+1,
@@ -471,6 +491,9 @@ def test():
             )
         )
         print(status, end="")
+        
+        if idx == config['test_num']:
+            break
     print()
     # show
     for task, score_dict in result_dict.items():
@@ -512,9 +535,12 @@ if __name__ == "__main__":
     parser.add_argument("--milestones", type=str, default='6')
     parser.add_argument("--reduction", type=str, default='sum')
     parser.add_argument("--bit_model_name", type=str, default=None)
+    parser.add_argument("--sweep", action='store_true')
+    parser.add_argument("--sweep_count", type=int, default=3)
     
     args = parser.parse_args()
     args.milestones = list(map(int, args.milestones.split(',')))
+    
     if args.backbone == 'bit':
         if args.bit_model_name is None:
             raise "Check bit_model_name argument"
@@ -522,11 +548,18 @@ if __name__ == "__main__":
             args.bit_model_name = PreTrained_Dict[args.bit_model_name]
     else :
         args.bit_model_name = None
+        
+    if args.sweep:
+        args.wandb = True
     
     config.update(vars(args))
     
     if args.mode == 'train':
-        train()
+        if args.sweep:
+            sweep_id = wandb.sweep(sweep=sweep_configuration, project=args.project)
+            wandb.agent(sweep_id=sweep_id, function=train, count=args.sweep_count)
+        else:
+            train()
     elif args.mode == 'test':
         if args.ckpt is None:
             raise Exception("Check the checkpoint path")
