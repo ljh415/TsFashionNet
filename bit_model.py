@@ -6,6 +6,13 @@ import timm.models.layers as tml
 from itertools import islice
 from collections import OrderedDict
 
+PreTrained_Dict = {
+    '0': 'resnetv2_50x1_bitm_in21k',
+    '1': 'resnetv2_50x3_bitm_in21k',
+    '2': 'resnetv2_101x1_bitm_in21k',
+    '3': 'resnetv2_101x3_bitm_in21k',
+}
+
 class GateNet(nn.Module):
     def __init__(self):
         super(GateNet, self).__init__()
