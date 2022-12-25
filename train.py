@@ -1,6 +1,5 @@
 import os
 import wandb
-import random
 import argparse
 import numpy as np
 from tqdm import tqdm
@@ -8,26 +7,19 @@ from collections import defaultdict
 
 import torch
 import torch.nn as nn
-import torch.backends.cudnn as cudnn
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
 from config import config, upper_class_name
 from dataset import TSDataset 
 from model import TSFashionNet
-from bit_model import BiT_TSFashionNet
+from bit_model import BiT_TSFashionNet, PreTrained_Dict
 from square_pad import SquarePad
 from custom_loss import LandmarkLoss
-from utils import get_now, checkpoint_save, make_metric_dict, calc_class_recall
-from utils import calc_metric, print_config
+from utils import fix_seed, get_now, checkpoint_save, make_metric_dict
+from utils import calc_class_recall, calc_metric, print_config
 
-torch.manual_seed(0)
-torch.cuda.manual_seed(0)
-torch.cuda.manual_seed_all(0)
-np.random.seed(0)
-cudnn.benchmark = False
-cudnn.deterministic = True
-random.seed(0)
+fix_seed()
 
 def train():
     
@@ -97,7 +89,7 @@ def train():
         pin_memory=True
     )
     
-    lm_criterion = LandmarkLoss().to(device)
+    lm_criterion = LandmarkLoss(config['reduction']).to(device)
     vis_criterion = nn.BCELoss().to(device)
     category_criterion = nn.CrossEntropyLoss().to(device)
     attribute_cretierion = nn.BCELoss().to(device)
@@ -518,11 +510,21 @@ if __name__ == "__main__":
     parser.add_argument("--test_num", type=int, default=None)
     parser.add_argument("--backbone", type=str, default='vgg')
     parser.add_argument("--milestones", type=str, default='6')
+    parser.add_argument("--reduction", type=str, default='sum')
+    parser.add_argument("--bit_model_name", type=str, default=None)
     
     args = parser.parse_args()
     args.milestones = list(map(int, args.milestones.split(',')))
+    if args.backbone == 'bit':
+        if args.bit_model_name is None:
+            raise "Check bit_model_name argument"
+        else :
+            args.bit_model_name = PreTrained_Dict[args.bit_model_name]
+    else :
+        args.bit_model_name = None
     
     config.update(vars(args))
+    
     if args.mode == 'train':
         train()
     elif args.mode == 'test':
