@@ -1,6 +1,7 @@
 import os
 import cv2
 import copy
+import random
 import pickle
 import datetime
 import numpy as np
@@ -8,11 +9,10 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 
 import torch
+import torch.backends.cudnn as cudnn
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as TF
 from torchmetrics import Recall, Accuracy
-
-from square_pad import SquarePad
 
 NORMALIZE_DICT = {
     'mean': [123.675, 116.28, 103.53],
@@ -22,6 +22,15 @@ NORMALIZE_DICT = {
 device = "cuda" if torch.cuda.is_available() else "cpu"
 with open('/media/jaeho/SSD/paper/resources/attribute_map.pickle', 'rb') as f:
     ATT_MAP = pickle.load(f)
+
+def fix_seed():
+    torch.manual_seed(0)
+    torch.cuda.manual_seed(0)
+    torch.cuda.manual_seed_all(0)
+    np.random.seed(0)
+    cudnn.benchmark = False
+    cudnn.deterministic = True
+    random.seed(0)
 
 def lm_transforms(transform, landmark, flip_flag):
     for idx, lm in enumerate(landmark):
@@ -214,6 +223,7 @@ def print_config(config, model, trainable=False):
 {'=='*20}
 mode\t\t: {config['mode']}
 backbone\t: {config['backbone']}
+pretrained_bit\t: {config['bit_model_name']}
 epochs\t\t: {config['epochs']}
 shape_epochs\t: {config['shape_epochs']}
 shape_lr\t: {config['shape_lr']}
