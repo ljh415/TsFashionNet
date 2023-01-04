@@ -14,10 +14,10 @@ PreTrained_Dict = {
 }
 
 class GateNet(nn.Module):
-    def __init__(self):
+    def __init__(self, channel_factor):
         super(GateNet, self).__init__()
         self.gate = nn.Sequential(
-            nn.Conv2d(4096, 1024, kernel_size=1),
+            nn.Conv2d(4096*channel_factor, 1024, kernel_size=1),
             nn.BatchNorm2d(1024),
             nn.ReLU()
         )
@@ -32,7 +32,8 @@ class BiT_TSFashionNet(nn.Module):
         super(BiT_TSFashionNet, self).__init__()
         self.bit_classifier = bit_classifier
         self.model = timm.create_model(model_name, pretrained=True)
-        self.gate = GateNet()
+        self.channel_factor = 3 if 'x3' in model_name else 1
+        self.gate = GateNet(self.channel_factor)
         
         ### texture
         self.texture_backbone = nn.Sequential(OrderedDict(islice(self.model._modules.items(), 2)))
@@ -61,7 +62,7 @@ class BiT_TSFashionNet(nn.Module):
         # 다초기화
         self.shape_backbone.apply(self._init_weight)
         self.shape_stream = nn.Sequential(
-            nn.Conv2d(2048, 1024, 1),
+            nn.Conv2d(2048*self.channel_factor, 1024, 1),
             nn.BatchNorm2d(1024),
             nn.ReLU(),
             nn.Conv2d(1024, 512, 3, padding=1),
