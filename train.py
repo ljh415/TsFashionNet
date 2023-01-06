@@ -1,5 +1,7 @@
 import os
+import time
 import wandb
+import datetime
 import argparse
 import numpy as np
 from tqdm import tqdm
@@ -460,8 +462,9 @@ def test():
     
     # inference, calc
     # for idx, data in tqdm(enumerate(test_dataset), total=config['test_num']):
+    total_time = 0
     for idx, data in enumerate(test_dataset):
-        
+        one_iter_start = time.time()
         img, cat, att, _, _ = data
         img_tensor = trans(img).to(device)
         img_tensor = torch.unsqueeze(img_tensor, axis=0)
@@ -480,10 +483,22 @@ def test():
             for value in values:
                 class_recall_dict[key][value] += 1
         
+        one_iter_time = time.time() - one_iter_start
+        total_time += one_iter_time
+        avg_time = total_time / (idx+1)
+        estimate_time = avg_time * config['test_num']
+        
+        total_show = str(datetime.timedelta(seconds=total_time))
+        estimate_show = str(datetime.timedelta(seconds=estimate_time))
+        total_short = total_show.split(".")[0]
+        estimate_short = estimate_show.split(".")[0]
+        
         status = (
-            "\r {:6d}/{:6d}\t | top3_acc: {:.3f}, top5_acc: {:.3f}, top3_recall: {:.3f}, top5_recall: {:.3f}  ".format(
+            "\r {:6d}/{:6d}\t[{} => {}] | top3_acc: {:.3f}, top5_acc: {:.3f}, top3_recall: {:.3f}, top5_recall: {:.3f}  ".format(
                 idx+1,
                 config['test_num'],
+                total_short,
+                estimate_short,
                 np.mean(result_dict['category']['top3_acc']),
                 np.mean(result_dict['category']['top5_acc']),
                 np.mean(result_dict['attribute']['top3_recall']),
