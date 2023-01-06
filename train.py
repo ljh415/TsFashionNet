@@ -511,6 +511,8 @@ def test():
             break
     print()
     # show
+    print_config(config, model, trainable=True)
+    
     for task, score_dict in result_dict.items():
         print("=="*20)  
         print(task)
