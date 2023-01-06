@@ -438,7 +438,7 @@ def test():
     if config['backbone'] == 'vgg':
         model = TSFashionNet().to(device)
     elif config['backbone'] == 'bit':
-        model = BiT_TSFashionNet(model_name='resnetv2_50x1_bitm_in21k').to(device)
+        model = BiT_TSFashionNet(model_name=config['bit_model_name']).to(device)
     
     ckpt_dict = torch.load(config['ckpt'])
     model.load_state_dict(ckpt_dict['model_state_dict'])
