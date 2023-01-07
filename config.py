@@ -21,7 +21,7 @@ sweep_configuration = {
     'entity': 'ljh415',
     'metric': {
         'goal': 'minimize',
-        'name': 'validation_loss'
+        'name': 'valid_loss'
     },
     'parameters': {
         'batch_size': {'values':[16, 32, 64]},
