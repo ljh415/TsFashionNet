@@ -106,30 +106,60 @@ class BiT_TSFashionNet(nn.Module):
         if isinstance(layer, nn.Conv2d):
             torch.nn.init.kaiming_normal_(layer.weight)
     
-    def forward(self, x, shape=False):
-        ### shape
-        shape_feature = self.shape_backbone(x)
-        shape_out = self.shape_stream(shape_feature)
-        vis_out = torch.flatten(shape_out, start_dim=1)
-        vis_out = self.vis_fc(vis_out)
-        vis_out = torch.sigmoid(vis_out)
+    def forward(self, x, shape=False, texture=True):
         
-        loc_out = self.location(shape_out)
-        
-        if shape:
+        if shape == True and texture == False:
+            ### shape
+            shape_feature = self.shape_backbone(x)
+            shape_out = self.shape_stream(shape_feature)
+            vis_out = torch.flatten(shape_out, start_dim=1)
+            vis_out = self.vis_fc(vis_out)
+            vis_out = torch.sigmoid(vis_out)
+            
+            loc_out = self.location(shape_out)
+            
             return vis_out, loc_out
         
-        ### texture
-        texture_out = self.texture_backbone(x)
-        cat_shape = shape_feature.clone().detach()
-        texture_out = self.gate(texture_out, cat_shape)
-        texture_out = self.texture_stream(texture_out)
-        texture_out = torch.squeeze(texture_out)
+        elif shape == False and texture == True:
+            ### texture
+            texture_out = self.texture_backbone(x)
+            cat_shape = shape_feature.clone().detach()
+            texture_out = self.gate(texture_out, cat_shape)
+            texture_out = self.texture_stream(texture_out)
+            texture_out = torch.squeeze(texture_out)
+            
+            clothes_out = self.clothes_cls_fc(texture_out)
+            clothes_out = torch.softmax(clothes_out, dim=0)
+            
+            attr_out = self.attr_recog_fc(texture_out)
+            attr_out = torch.sigmoid(attr_out)
+
+            return attr_out, clothes_out
         
-        clothes_out = self.clothes_cls_fc(texture_out)
-        clothes_out = torch.softmax(clothes_out, dim=0)
-        
-        attr_out = self.attr_recog_fc(texture_out)
-        attr_out = torch.sigmoid(attr_out)
-        
-        return vis_out, loc_out, clothes_out, attr_out
+        else :
+            ### shape
+            shape_feature = self.shape_backbone(x)
+            shape_out = self.shape_stream(shape_feature)
+            vis_out = torch.flatten(shape_out, start_dim=1)
+            vis_out = self.vis_fc(vis_out)
+            vis_out = torch.sigmoid(vis_out)
+            
+            loc_out = self.location(shape_out)
+            
+            if shape:
+                return vis_out, loc_out
+            
+            ### texture
+            texture_out = self.texture_backbone(x)
+            cat_shape = shape_feature.clone().detach()
+            texture_out = self.gate(texture_out, cat_shape)
+            texture_out = self.texture_stream(texture_out)
+            texture_out = torch.squeeze(texture_out)
+            
+            clothes_out = self.clothes_cls_fc(texture_out)
+            clothes_out = torch.softmax(clothes_out, dim=0)
+            
+            attr_out = self.attr_recog_fc(texture_out)
+            attr_out = torch.sigmoid(attr_out)
+            
+            return vis_out, loc_out, clothes_out, attr_out

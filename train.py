@@ -264,7 +264,7 @@ def train():
             visibility_batch = visibility_batch.to(device)
             landmark_batch = landmark_batch.to(device)
             
-            vis_out, loc_out, category_out, attr_out = model(img_batch, shape=False)
+            vis_out, loc_out, category_out, attr_out = model(img_batch, shape=False, texture=True)
             
             # acc
             ## new
@@ -347,7 +347,7 @@ def train():
                 visibility_batch = visibility_batch.to(device)
                 landmark_batch = landmark_batch.to(device)
                 
-                vis_out, loc_out, category_out, attr_out = model(img_batch, shape=False)
+                vis_out, loc_out, category_out, attr_out = model(img_batch, shape=False, texture=True)
                 
                 # acc
                 ## new
