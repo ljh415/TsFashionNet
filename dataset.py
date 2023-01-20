@@ -24,7 +24,8 @@ class TSDataset(Dataset):
         super(TSDataset, self).__init__()
         
         self.transform = transform
-        with open(data_path, 'rb') as f:
+        self.data_path = data_path
+        with open(self.data_path, 'rb') as f:
             raw_dict = pickle.load(f)
         self.raw_data = list(raw_dict.items())
         self.flip=flip
@@ -95,6 +96,9 @@ class TSDataset(Dataset):
 
     def __getitem__(self, index):
         img_path, data_dict = self.raw_data[index]
+        cropped_img_path = '/'.join(img_path.split('/')[-5:])
+        upper_img_dir = '/'.join(self.data_path.split("/")[:4])
+        img_path = os.path.join(upper_img_dir, 'dataset', 'img-001', cropped_img_path)
         landmark_info = data_dict['landmark']
         
         img_path = os.path.join(IMG_DIR, img_path)
