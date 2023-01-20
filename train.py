@@ -266,6 +266,7 @@ def train():
             
             vis_out, loc_out, category_out, attr_out = model(img_batch, shape=False, texture=True)
             
+            
             # acc
             ## new
             calc_dict = calc_metric(metric_dict, category_out, attr_out, category_batch, attribute_batch, mode=config['mode'])
@@ -283,17 +284,18 @@ def train():
             # running_train_attr_recall += batch_attr_recall.detach().cpu().item()
 
             # loss
-            lm_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
-            vis_loss = vis_criterion(vis_out, visibility_batch)
+            # lm_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
+            # vis_loss = vis_criterion(vis_out, visibility_batch)
             cat_loss = category_criterion(category_out, category_batch)
             att_loss = attribute_cretierion(attr_out, attribute_batch)
             
-            loss = lm_loss + vis_loss + cat_loss + 500*att_loss
+            # loss = lm_loss + vis_loss + cat_loss + 500*att_loss
+            loss = cat_loss + 500*att_loss
             
             # loss calc
             running_train_loss += loss.detach().cpu().numpy().item()
-            running_landmark_loss += lm_loss.detach().cpu().numpy().item()
-            running_visibility_loss += vis_loss.detach().cpu().numpy().item()
+            # running_landmark_loss += lm_loss.detach().cpu().numpy().item()
+            # running_visibility_loss += vis_loss.detach().cpu().numpy().item()
             running_category_loss += cat_loss.detach().cpu().numpy().item()
             running_attribute_loss += att_loss.detach().cpu().numpy().item()
             
@@ -319,8 +321,8 @@ def train():
         print()
         
         train_loss = running_train_loss / len(train_dataloader)
-        landmark_loss = running_landmark_loss / len(train_dataloader)
-        visibility_loss = running_visibility_loss / len(train_dataloader)
+        # landmark_loss = running_landmark_loss / len(train_dataloader)
+        # visibility_loss = running_visibility_loss / len(train_dataloader)
         category_loss = running_category_loss / len(train_dataloader)
         attribute_loss = running_attribute_loss / len(train_dataloader)
         
@@ -366,22 +368,24 @@ def train():
                 # running_val_attr_recall += batch_attr_recall
                 
                 # loss
-                lm_val_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
-                vis_val_loss = vis_criterion(vis_out, visibility_batch)
+                # lm_val_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
+                # vis_val_loss = vis_criterion(vis_out, visibility_batch)
                 cat_val_loss = category_criterion(category_out, category_batch)
                 att_val_loss = attribute_cretierion(attr_out, attribute_batch)
                 
-                val_loss = lm_val_loss + vis_val_loss + cat_val_loss + 500*att_val_loss
+                # val_loss = lm_val_loss + vis_val_loss + cat_val_loss + 500*att_val_loss
+                val_loss = cat_val_loss + 500*att_val_loss
+                
                 
                 running_val_loss += val_loss.item()
-                running_landmark_val_loss += lm_val_loss.item()
-                running_visibility_val_loss += vis_val_loss.item()
+                # running_landmark_val_loss += lm_val_loss.item()
+                # running_visibility_val_loss += vis_val_loss.item()
                 running_category_val_loss += cat_val_loss.item()
                 running_attribute_val_loss += att_val_loss.item()
                 
         validation_loss = running_val_loss / len(valid_dataloader)
-        validation_landmark_loss = running_landmark_val_loss / len(valid_dataloader)
-        validation_visibility_loss = running_visibility_val_loss / len(valid_dataloader)
+        # validation_landmark_loss = running_landmark_val_loss / len(valid_dataloader)
+        # validation_visibility_loss = running_visibility_val_loss / len(valid_dataloader)
         validation_category_loss = running_category_val_loss / len(valid_dataloader)
         validation_attribute_loss = running_attribute_val_loss / len(valid_dataloader)
         
@@ -415,8 +419,8 @@ def train():
                 "train_attribute_recall5": train_attr_recall5,
                 "train_attribute": attribute_loss,
                 "train_category": category_loss,
-                "train_landmark": landmark_loss,
-                "train_visibility": visibility_loss,
+                # "train_landmark": landmark_loss,
+                # "train_visibility": visibility_loss,
                 "train_loss": train_loss,
                 "valid_category_acc3": val_cat_acc3,
                 "valid_category_acc5": val_cat_acc5,
@@ -424,8 +428,8 @@ def train():
                 "valid_attribute_recall5": val_attr_recall5,
                 "valid_attribute": validation_attribute_loss,
                 "valid_category": validation_category_loss,
-                "valid_landmark": validation_landmark_loss,
-                "valid_visibility": validation_visibility_loss,
+                # "valid_landmark": validation_landmark_loss,
+                # "valid_visibility": validation_visibility_loss,
                 "valid_loss": validation_loss,
             }
             
