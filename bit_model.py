@@ -17,14 +17,16 @@ class GateNet(nn.Module):
     def __init__(self, channel_factor):
         super(GateNet, self).__init__()
         self.gate = nn.Sequential(
-            nn.Conv2d(4096*channel_factor, 1024, kernel_size=1),
+            # nn.Conv2d(4096*channel_factor, 1024, kernel_size=1),
+            nn.Conv2d(2048, 1024, kernel_size=1),
             nn.BatchNorm2d(1024),
             nn.ReLU()
         )
     
-    def forward(self, a, b):
-        out = torch.cat((a, b), dim=1)
-        out = self.gate(out)
+    def forward(self, a, b=None):
+        # out = torch.cat((a, b), dim=1)
+        # out = self.gate(out)
+        out = self.gate(a)
         return out
 
 class BiT_TSFashionNet(nn.Module):
@@ -54,6 +56,7 @@ class BiT_TSFashionNet(nn.Module):
             nn.Dropout(0.5),
             nn.AdaptiveAvgPool2d((1, 1))
         )
+        
         self.clothes_cls_fc = nn.Linear(4096, 46)
         self.attr_recog_fc = nn.Linear(4096, 1000)
         
@@ -123,8 +126,11 @@ class BiT_TSFashionNet(nn.Module):
         elif shape == False and texture == True:
             ### texture
             texture_out = self.texture_backbone(x)
-            cat_shape = shape_feature.clone().detach()
-            texture_out = self.gate(texture_out, cat_shape)
+            # cat_shape = shape_feature.clone().detach()
+            # texture_out = self.gate(texture_out, cat_shape)
+            # print('after texturebackbone')
+            # print(texture_out.shape)
+            texture_out = self.gate(texture_out)
             texture_out = self.texture_stream(texture_out)
             texture_out = torch.squeeze(texture_out)
             
@@ -134,7 +140,7 @@ class BiT_TSFashionNet(nn.Module):
             attr_out = self.attr_recog_fc(texture_out)
             attr_out = torch.sigmoid(attr_out)
 
-            return attr_out, clothes_out
+            return None, None, clothes_out, attr_out
         
         else :
             ### shape
