@@ -468,6 +468,8 @@ def test():
         img, cat, att, _, _ = data
         img_tensor = trans(img).to(device)
         img_tensor = torch.unsqueeze(img_tensor, axis=0)
+        cat = cat.to(device)
+        att = att.to(device)
         _, _, cat_out, att_out = model(img_tensor, shape=False)
         
         # calc metric
@@ -573,7 +575,7 @@ if __name__ == "__main__":
     
     if args.mode == 'train':
         if args.sweep:
-            sweep_id = wandb.sweep(sweep=sweep_configuration, project=args.project)
+            sweep_id = wandb.sweep(sweep=sweep_configuration[args.backbone], project=args.project)
             wandb.agent(sweep_id=sweep_id, function=train, count=args.sweep_count)
         else:
             train()
