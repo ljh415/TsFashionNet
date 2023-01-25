@@ -182,7 +182,9 @@ def calc_class_recall(att_gt, att_pred):
         
         return topk_tp
     
+    att_gt = torch.squeeze(att_gt)
     att_gt_idx = [idx for idx, value in enumerate(att_gt) if value != 0]
+    
     top3_tp = _calc_tp(3, att_gt_idx, att_pred)
     top5_tp = _calc_tp(5, att_gt_idx, att_pred)
     
@@ -194,21 +196,14 @@ def calc_class_recall(att_gt, att_pred):
     
     return tp_dict
 
-def calc_metric(metric_dict, cat_pred, att_pred, cat_gt, att_gt, mode="train"):
+def calc_metric(metric_dict, cat_pred, att_pred, cat_gt, att_gt):
 
     result_dict = {}
     
-    # category
-    # cat_gt = cat_gt.to(device)
-    # if mode=="test":
-    #     cat_pred = torch.unsqueeze(cat_pred, axis=0)
-        
     for k, metric in metric_dict['acc'].items():
         score = metric(cat_pred, cat_gt.type(torch.int16)).cpu()
         result_dict[f'category-top{k}_acc'] = score
     
-    # attribute
-    # att_gt = att_gt.to(device)
     att_pred = torch.unsqueeze(att_pred, axis=0)
     att_gt = torch.unsqueeze(att_gt, axis=0)
     
