@@ -199,16 +199,16 @@ def calc_metric(metric_dict, cat_pred, att_pred, cat_gt, att_gt, mode="train"):
     result_dict = {}
     
     # category
-    cat_gt = cat_gt.to(device)
-    if mode=="test":
-        cat_pred = torch.unsqueeze(cat_pred, axis=0)
+    # cat_gt = cat_gt.to(device)
+    # if mode=="test":
+    #     cat_pred = torch.unsqueeze(cat_pred, axis=0)
         
     for k, metric in metric_dict['acc'].items():
         score = metric(cat_pred, cat_gt.type(torch.int16)).cpu()
         result_dict[f'category-top{k}_acc'] = score
     
     # attribute
-    att_gt = att_gt.to(device)
+    # att_gt = att_gt.to(device)
     att_pred = torch.unsqueeze(att_pred, axis=0)
     att_gt = torch.unsqueeze(att_gt, axis=0)
     
