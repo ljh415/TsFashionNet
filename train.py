@@ -450,7 +450,14 @@ def test():
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
-    test_dataset = TSDataset('/media/jaeho/SSD/datasets/deepfashion/split/test.pickle')
+    test_dataset = TSDataset('/media/jaeho/SSD/datasets/deepfashion/split/test.pickle', transform=trans)
+    test_dataloder = DataLoader(
+        test_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=config['num_workers'],
+        pin_memory=True
+    )
 
     if config['test_num'] is None:
         config['test_num'] = len(test_dataset)
@@ -461,16 +468,18 @@ def test():
     class_recall_dict = defaultdict(lambda : defaultdict(int))
     
     # inference, calc
-    # for idx, data in tqdm(enumerate(test_dataset), total=config['test_num']):
     total_time = 0
-    for idx, data in enumerate(test_dataset):
+    for idx, (img, cat, att, _, _) in enumerate(test_dataloder):
         one_iter_start = time.time()
-        img, cat, att, _, _ = data
-        img_tensor = trans(img).to(device)
-        img_tensor = torch.unsqueeze(img_tensor, axis=0)
+        
+        cat = torch.Tensor([torch.squeeze(cat)])
         cat = cat.to(device)
         att = att.to(device)
+        img_tensor = img.to(device)
+        
         _, _, cat_out, att_out = model(img_tensor, shape=False)
+        cat_out = torch.unsqueeze(cat_out, axis=0)
+        att_out = torch.unsqueeze(att_out, axis=0)
         
         # calc metric
         calc_dict = calc_metric(metric_dict, cat_out, att_out, cat, att, mode=config['mode'])
