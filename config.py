@@ -15,19 +15,38 @@ upper_class_name ={
 }
 
 sweep_configuration = {
-    'method': 'bayes',
-    'name': f'TSFashionNet_sweep_{get_now(True)}',
-    'project': 'tsfashionnet',
-    'entity': 'ljh415',
-    'metric': {
-        'goal': 'minimize',
-        'name': 'valid_loss'
+    'vgg': {
+        'method': 'bayes',
+        'name': f'TSFashionNet_sweep_{get_now(True)}',
+        'project': 'tsfashionnet',
+        'entity': 'ljh415',
+        'metric': {
+            'goal': 'minimize',
+            'name': 'valid_loss'
+        },
+        'parameters': {
+            'batch_size': {'values':[16, 32]},
+            'epochs': {'min':12, 'max':20},
+            'lr': {'min':1e-5, 'max':1e-2},
+            'shape_epochs': {'min': 3, 'max': 5},
+            'shape_lr': {'min':1e-5, 'max':5e-3},
+        }
     },
-    'parameters': {
-        'batch_size': {'values':[16, 32]},
-        'epochs': {'min':12, 'max':20},
-        'lr': {'min':1e-5, 'max':1e-2},
-        'shape_epochs': {'min': 3, 'max': 5},
-        'shape_lr': {'min':1e-4, 'max':1e-2},
+    'bit': {
+        'method': 'bayes',
+        'name': f'TSFashionNet_sweep_{get_now(True)}',
+        'project': 'tsfashionnet',
+        'entity': 'ljh415',
+        'metric': {
+            'goal': 'minimize',
+            'name': 'valid_loss'
+        },
+        'parameters': {
+            'batch_size': {'values':[16, 32]},
+            'epochs': {'min':12, 'max':20},
+            'lr': {'min':1e-5, 'max':1e-2},
+            'shape_epochs': {'min': 3, 'max': 5},
+            'shape_lr': {'min':1e-4, 'max':1e-2},
+        }
     }
 }
