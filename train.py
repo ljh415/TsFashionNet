@@ -268,7 +268,7 @@ def train():
             
             # acc
             ## new
-            calc_dict = calc_metric(metric_dict, category_out, attr_out, category_batch, attribute_batch, mode=config['mode'])
+            calc_dict = calc_metric(metric_dict, category_out, attr_out, category_batch, attribute_batch)
             running_train_category_acc3 += calc_dict['category-top3_acc'].detach().cpu().item()
             running_train_category_acc5 += calc_dict['category-top5_acc'].detach().cpu().item()
             
@@ -351,7 +351,7 @@ def train():
                 
                 # acc
                 ## new
-                calc_dict = calc_metric(metric_dict, category_out, attr_out, category_batch, attribute_batch, mode=config['mode'])
+                calc_dict = calc_metric(metric_dict, category_out, attr_out, category_batch, attribute_batch)
                 running_val_category_acc3 += calc_dict['category-top3_acc'].detach().cpu().item()
                 running_val_category_acc5 += calc_dict['category-top5_acc'].detach().cpu().item()
                 
@@ -482,7 +482,7 @@ def test():
         att_out = torch.unsqueeze(att_out, axis=0)
         
         # calc metric
-        calc_dict = calc_metric(metric_dict, cat_out, att_out, cat, att, mode=config['mode'])
+        calc_dict = calc_metric(metric_dict, cat_out, att_out, cat, att)
         
         for key, score in calc_dict.items():
             task, metric_name = key.split("-")
