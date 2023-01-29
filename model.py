@@ -72,7 +72,6 @@ class TSFashionNet(nn.Module):
         self.clothes_cls_fc = nn.Linear(4096, 46)
         self.attr_recog_fc = nn.Linear(4096, 1000)
         
-        
         # shape
         self.shape_backbone = VggBackbone(init_weight=True)
         self.conv5_maxpool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
@@ -126,4 +125,4 @@ class TSFashionNet(nn.Module):
         attr_out = self.attr_recog_fc(texture_out)
         attr_out = torch.sigmoid(attr_out)
         
-        return vis_out, loc_out, clothes_out, attr_out
+        return clothes_out, attr_out, vis_out, loc_out
