@@ -17,7 +17,10 @@ from dataset import TSDataset
 from model import TSFashionNet
 from bit_model import BiT_TSFashionNet, PreTrained_Dict
 from square_pad import SquarePad
-from custom_loss import LandmarkLoss
+
+from custom_loss import LandmarkLoss  # 변경
+from base_loss import BaseLoss
+
 from utils import fix_seed, get_now, checkpoint_save, make_metric_dict
 from utils import calc_class_recall, calc_metric, print_config
 
@@ -106,11 +109,16 @@ def train():
         num_workers=num_workers,
         pin_memory=True
     )
+    ##########
+    # new
+    criterions = BaseLoss(config['reduction'])
     
-    lm_criterion = LandmarkLoss(config['reduction']).to(device)
-    vis_criterion = nn.BCELoss().to(device)
-    category_criterion = nn.CrossEntropyLoss().to(device)
-    attribute_cretierion = nn.BCELoss().to(device)
+    # before
+    # lm_criterion = LandmarkLoss(config['reduction']).to(device)
+    # vis_criterion = nn.BCELoss().to(device)
+    # category_criterion = nn.CrossEntropyLoss().to(device)
+    # attribute_cretierion = nn.BCELoss().to(device)
+    ##########
     
     # model
     if config['backbone'] == 'vgg':
@@ -148,16 +156,28 @@ def train():
             shape_optimizer.zero_grad()
             
             img_batch = img_batch.to(device)
-            landmark_batch = landmark_batch.to(device)
-            visibility_batch = visibility_batch.to(device)
+            # landmark_batch = landmark_batch.to(device)
+            # visibility_batch = visibility_batch.to(device)
             
             vis_out, loc_out = model(img_batch, shape=True)  # training only shape biased stream
 
-            # loss
-            lm_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
-            vis_loss = vis_criterion(vis_out, visibility_batch)
+            ###########
+            # new
+            vis_loss, lm_loss = criterions(
+                preds = (_, _, visibility_batch, landmark_batch),
+                targets = (_, _, vis_out, loc_out),
+                shape = True
+            )
             
-            loss = lm_loss + vis_loss
+            # before
+            # loss
+            # lm_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
+            # vis_loss = vis_criterion(vis_out, visibility_batch)
+            
+            ###########
+            
+            
+            loss = vis_loss + lm_loss
             
             # loss calc
             running_shape_loss += loss.detach().cpu().numpy().item()
@@ -197,15 +217,24 @@ def train():
             for batch_idx, (img_batch, _, _, visibility_batch, landmark_batch) in enumerate(valid_dataloader):
                 
                 img_batch = img_batch.to(device)
-                visibility_batch = visibility_batch.to(device)
-                landmark_batch = landmark_batch.to(device)
+                # visibility_batch = visibility_batch.to(device)
+                # landmark_batch = landmark_batch.to(device)
                 
                 vis_out, loc_out = model(img_batch, shape=True)
                 
-                lm_val_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
-                vis_val_loss = vis_criterion(vis_out, visibility_batch)
+                #########
+                vis_val_loss, lm_val_loss = criterions(
+                    preds = (_, _, visibility_batch, landmark_batch),
+                    targets = (_, _, vis_out, loc_out),
+                    shape = True
+                )
                 
-                val_loss = lm_val_loss + vis_val_loss
+                # lm_val_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
+                # vis_val_loss = vis_criterion(vis_out, visibility_batch)
+                
+                ##########
+                
+                val_loss = vis_val_loss + lm_val_loss
                 
                 running_val_loss += val_loss.item()
                 running_landmark_val_loss += lm_val_loss.item()
@@ -259,12 +288,41 @@ def train():
             optimizer.zero_grad()
 
             img_batch = img_batch.to(device)
-            category_batch = category_batch.squeeze().to(device)
-            attribute_batch = attribute_batch.to(device)
-            visibility_batch = visibility_batch.to(device)
-            landmark_batch = landmark_batch.to(device)
+            # category_batch = category_batch.squeeze().to(device)
+            # attribute_batch = attribute_batch.to(device)
+            # visibility_batch = visibility_batch.to(device)
+            # landmark_batch = landmark_batch.to(device)
             
-            vis_out, loc_out, category_out, attr_out = model(img_batch, shape=False)
+            category_out, attr_out, vis_out, loc_out = model(img_batch, shape=False)
+            
+            ######################
+            # new
+            cat_loss, att_loss, vis_loss, lm_loss = criterions(
+                preds = (category_batch, attribute_batch, visibility_batch, landmark_batch),
+                targets = (category_out, attr_out, vis_out, loc_out),
+            )
+            
+            # before
+            # loss
+            # lm_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
+            # vis_loss = vis_criterion(vis_out, visibility_batch)
+            # cat_loss = category_criterion(category_out, category_batch)
+            # att_loss = attribute_cretierion(attr_out, attribute_batch)
+            
+            ######################
+            
+            loss = cat_loss + 500*att_loss + lm_loss + vis_loss
+            
+            # loss calc
+            running_train_loss += loss.detach().cpu().numpy().item()
+            running_landmark_loss += lm_loss.detach().cpu().numpy().item()
+            running_visibility_loss += vis_loss.detach().cpu().numpy().item()
+            running_category_loss += cat_loss.detach().cpu().numpy().item()
+            running_attribute_loss += att_loss.detach().cpu().numpy().item()
+            
+            loss.backward()
+            optimizer.step()
+            step += 1
             
             # acc
             ## new
@@ -281,25 +339,6 @@ def train():
             
             # batch_attr_recall = top_3_recall(attr_out, attribute_batch.type(torch.int16))
             # running_train_attr_recall += batch_attr_recall.detach().cpu().item()
-
-            # loss
-            lm_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
-            vis_loss = vis_criterion(vis_out, visibility_batch)
-            cat_loss = category_criterion(category_out, category_batch)
-            att_loss = attribute_cretierion(attr_out, attribute_batch)
-            
-            loss = lm_loss + vis_loss + cat_loss + 500*att_loss
-            
-            # loss calc
-            running_train_loss += loss.detach().cpu().numpy().item()
-            running_landmark_loss += lm_loss.detach().cpu().numpy().item()
-            running_visibility_loss += vis_loss.detach().cpu().numpy().item()
-            running_category_loss += cat_loss.detach().cpu().numpy().item()
-            running_attribute_loss += att_loss.detach().cpu().numpy().item()
-            
-            loss.backward()
-            optimizer.step()
-            step += 1
             
             status = (
                 "\r> epoch: {:3d} > step: {:3d} > lr: {}, loss: {:.3f}, cat acc3: {:.2f}, cat acc5: {:.2f}, attr recall3: {:.4f}, attr recall5: {:.4f}  ".format(
@@ -342,12 +381,33 @@ def train():
             model.eval()
             for img_batch, category_batch, attribute_batch, visibility_batch, landmark_batch in valid_dataloader:
                 img_batch = img_batch.to(device)
-                category_batch = category_batch.squeeze().to(device)
-                attribute_batch = attribute_batch.to(device)
-                visibility_batch = visibility_batch.to(device)
-                landmark_batch = landmark_batch.to(device)
+                # category_batch = category_batch.squeeze().to(device)
+                # attribute_batch = attribute_batch.to(device)
+                # visibility_batch = visibility_batch.to(device)
+                # landmark_batch = landmark_batch.to(device)
                 
-                vis_out, loc_out, category_out, attr_out = model(img_batch, shape=False)
+                category_out, attr_out, vis_out, loc_out = model(img_batch, shape=False)
+                ###############
+                cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterions(
+                    preds = (category_batch, attribute_batch, visibility_batch, landmark_batch),
+                    targets = (category_out, attr_out, vis_out, loc_out),
+                )
+                
+                # loss
+                # lm_val_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
+                # vis_val_loss = vis_criterion(vis_out, visibility_batch)
+                # cat_val_loss = category_criterion(category_out, category_batch)
+                # att_val_loss = attribute_cretierion(attr_out, attribute_batch)
+                
+                ################
+                
+                val_loss = cat_val_loss + 500*att_val_loss + lm_val_loss + vis_val_loss
+                
+                running_val_loss += val_loss.item()
+                running_landmark_val_loss += lm_val_loss.item()
+                running_visibility_val_loss += vis_val_loss.item()
+                running_category_val_loss += cat_val_loss.item()
+                running_attribute_val_loss += att_val_loss.item()
                 
                 # acc
                 ## new
@@ -364,20 +424,6 @@ def train():
                 
                 # batch_attr_recall = top_3_recall(attr_out, attribute_batch.type(torch.int16))
                 # running_val_attr_recall += batch_attr_recall
-                
-                # loss
-                lm_val_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
-                vis_val_loss = vis_criterion(vis_out, visibility_batch)
-                cat_val_loss = category_criterion(category_out, category_batch)
-                att_val_loss = attribute_cretierion(attr_out, attribute_batch)
-                
-                val_loss = lm_val_loss + vis_val_loss + cat_val_loss + 500*att_val_loss
-                
-                running_val_loss += val_loss.item()
-                running_landmark_val_loss += lm_val_loss.item()
-                running_visibility_val_loss += vis_val_loss.item()
-                running_category_val_loss += cat_val_loss.item()
-                running_attribute_val_loss += att_val_loss.item()
                 
         validation_loss = running_val_loss / len(valid_dataloader)
         validation_landmark_loss = running_landmark_val_loss / len(valid_dataloader)

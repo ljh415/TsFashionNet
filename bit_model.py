@@ -132,4 +132,4 @@ class BiT_TSFashionNet(nn.Module):
         attr_out = self.attr_recog_fc(texture_out)
         attr_out = torch.sigmoid(attr_out)
         
-        return vis_out, loc_out, clothes_out, attr_out
+        return clothes_out, attr_out, vis_out, loc_out, 
