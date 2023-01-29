@@ -17,7 +17,7 @@ from utils import lm_transforms
 
 LANDMARK_MAP = ['left_collar', 'right_collar', 'left_sleeve', 'right_sleeve',
                 'left_waistline', 'right_waistline', 'left_hem', 'right_hem']
-IMG_DIR = '/media/jaeho/SSD/datasets/deepfashion/img-001/'
+IMG_DIR = '/home/jaeho_sub/documents/dataset/img-001'
 
 class TSDataset(Dataset):
     def __init__(self, data_path, transform=None, flip=True):
