@@ -60,7 +60,8 @@ class TSFashionNet(nn.Module):
             for layer_num, layer_ in inner_seq.named_parameters():
                 layer_.require_grad = False
         self.texture_stream = nn.Sequential(
-            nn.Conv2d(1024, 2048, 3, padding=0),
+            # nn.Conv2d(1024, 2048, 3, padding=0),
+            nn.Conv2d(512, 2048, 3),
             nn.BatchNorm2d(2048),
             nn.ReLU(),
             nn.Conv2d(2048, 4096, 3, padding=1),
@@ -117,8 +118,8 @@ class TSFashionNet(nn.Module):
         elif shape == False and texture == True:
             # texture
             texture_out = self.texture_backbone(x)
-            cat_shape = self.conv5_maxpool(shape_feature).clone().detach()
-            texture_out = torch.cat((texture_out, cat_shape), dim=1)
+            # cat_shape = self.conv5_maxpool(shape_feature).clone().detach()
+            # texture_out = torch.cat((texture_out, cat_shape), dim=1)
             texture_out = self.texture_stream(texture_out)
             texture_out = torch.squeeze(texture_out)
             
@@ -128,7 +129,7 @@ class TSFashionNet(nn.Module):
             attr_out = self.attr_recog_fc(texture_out)
             attr_out = torch.sigmoid(attr_out)
             
-            return attr_out, clothes_out
+            return None, None, clothes_out, attr_out
         
         else :
             # shape
