@@ -23,7 +23,7 @@ class TSDataset(Dataset):
             raw_dict = pickle.load(f)
         self.raw_data = list(raw_dict.items())
         self.flip=flip
-        self.img_dir
+        self.img_dir=img_dir
     
     def __len__(self):
         return len(self.raw_data)
