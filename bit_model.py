@@ -28,7 +28,7 @@ class GateNet(nn.Module):
         return out
 
 class BiT_TSFashionNet(nn.Module):
-    def __init__(self, model_name, num_of_classes=1000, bit_classifier=False):
+    def __init__(self, model_name, bit_classifier=False):
         super(BiT_TSFashionNet, self).__init__()
         self.bit_classifier = bit_classifier
         self.model = timm.create_model(model_name, pretrained=True)
@@ -61,8 +61,22 @@ class BiT_TSFashionNet(nn.Module):
         
         ####################################################
         # bit classifier로 변경해줘야 할 부분
-        self.clothes_cls_fc = nn.Linear(4096, 46)
-        self.attr_recog_fc = nn.Linear(4096, 1000)
+        self.clothes_cls_fc = nn.Sequential(OrderedDict([
+            ('global_pool', tml.SelectAdaptivePool2d(pool_type='avg')),
+            ('fc', nn.Conv2d(2048, 46, kernel_size=(1,1), stride=(1,1))),
+            ('flatten', nn.Flatten(start_dim=1, end_dim=-1))
+        ]))
+        
+        self.attr_recog_fc = nn.Sequential(OrderedDict([
+            ('global_pool', tml.SelectAdaptivePool2d(pool_type='avg')),
+            ('fc', nn.Conv2d(2048, 1000, kernel_size=(1,1), stride=(1,1))),
+            ('flatten', nn.Flatten(start_dim=1, end_dim=-1))
+        ]))
+        
+        
+        
+        # self.clothes_cls_fc = nn.Linear(4096, 46)
+        # self.attr_recog_fc = nn.Linear(4096, 1000)
         ####################################################
         
         ### shape
