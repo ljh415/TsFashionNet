@@ -35,6 +35,10 @@ class BiT_TSFashionNet(nn.Module):
         self.channel_factor = 3 if 'x3' in model_name else 1
         self.gate = GateNet(self.channel_factor)
         
+        ### norm
+        self.shape_norm = tml.GroupNormAct(2048, 32, eps=1-5, affine=True)
+        self.texture_norm = tml.GroupNormAct(2048, 32, eps=1-5, affine=True)
+        
         ### texture
         self.texture_backbone = nn.Sequential(OrderedDict(islice(self.model._modules.items(), 2)))
         # 4번째 블럭 초기화
@@ -54,8 +58,12 @@ class BiT_TSFashionNet(nn.Module):
             nn.Dropout(0.5),
             nn.AdaptiveAvgPool2d((1, 1))
         )
+        
+        ####################################################
+        # bit classifier로 변경해줘야 할 부분
         self.clothes_cls_fc = nn.Linear(4096, 46)
         self.attr_recog_fc = nn.Linear(4096, 1000)
+        ####################################################
         
         ### shape
         self.shape_backbone = nn.Sequential(OrderedDict(islice(self.model._modules.items(), 2)))
@@ -109,6 +117,9 @@ class BiT_TSFashionNet(nn.Module):
     def forward(self, x, shape=False):
         ### shape
         shape_feature = self.shape_backbone(x)
+        #
+        shape_feature = self.shape_norm(shape_feature)
+        
         shape_out = self.shape_stream(shape_feature)
         vis_out = torch.flatten(shape_out, start_dim=1)
         vis_out = self.vis_fc(vis_out)
@@ -121,6 +132,9 @@ class BiT_TSFashionNet(nn.Module):
         
         ### texture
         texture_out = self.texture_backbone(x)
+        #
+        texture_out = self.texture_norm(texture_out)
+        
         cat_shape = shape_feature.clone().detach()
         texture_out = self.gate(texture_out, cat_shape)
         texture_out = self.texture_stream(texture_out)
