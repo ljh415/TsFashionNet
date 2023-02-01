@@ -56,20 +56,20 @@ class BiT_TSFashionNet(nn.Module):
             nn.BatchNorm2d(4096),
             nn.ReLU(),
             nn.Dropout(0.5),
-            nn.AdaptiveAvgPool2d((1, 1))
+            # nn.AdaptiveAvgPool2d((1, 1))  # bit_classifier에서 selective averagepool2d
         )
         
         ####################################################
         # bit classifier로 변경해줘야 할 부분
         self.clothes_cls_fc = nn.Sequential(OrderedDict([
             ('global_pool', tml.SelectAdaptivePool2d(pool_type='avg')),
-            ('fc', nn.Conv2d(2048, 46, kernel_size=(1,1), stride=(1,1))),
+            ('fc', nn.Conv2d(4096, 46, kernel_size=(1,1), stride=(1,1))),
             ('flatten', nn.Flatten(start_dim=1, end_dim=-1))
         ]))
         
         self.attr_recog_fc = nn.Sequential(OrderedDict([
             ('global_pool', tml.SelectAdaptivePool2d(pool_type='avg')),
-            ('fc', nn.Conv2d(2048, 1000, kernel_size=(1,1), stride=(1,1))),
+            ('fc', nn.Conv2d(4096, 1000, kernel_size=(1,1), stride=(1,1))),
             ('flatten', nn.Flatten(start_dim=1, end_dim=-1))
         ]))
         
@@ -154,6 +154,7 @@ class BiT_TSFashionNet(nn.Module):
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
         
+        print(texture_out.shape)
         clothes_out = self.clothes_cls_fc(texture_out)
         clothes_out = torch.softmax(clothes_out, dim=0)
         
