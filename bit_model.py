@@ -31,12 +31,17 @@ class BiT_TSFashionNet(nn.Module):
     def __init__(self, model_name, num_of_classes=1000, bit_classifier=False):
         super(BiT_TSFashionNet, self).__init__()
         self.bit_classifier = bit_classifier
-        self.model = timm.create_model(model_name, pretrained=True)
+        self.texture_model = timm.create_model(model_name, pretrained=True)
+        self.shape_model = timm.create_model(model_name, pretrained=False)
         self.channel_factor = 3 if 'x3' in model_name else 1
         self.gate = GateNet(self.channel_factor)
         
+        ### norm
+        self.shape_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
+        self.texture_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
+        
         ### texture
-        self.texture_backbone = nn.Sequential(OrderedDict(islice(self.model._modules.items(), 2)))
+        self.texture_backbone = nn.Sequential(OrderedDict(islice(self.texture_model._modules.items(), 2)))
         # 4번째 블럭 초기화
         self.texture_backbone._modules['stages']._modules['3'].apply(self._init_weight)
         # 3번째 까지는 freeze
@@ -58,9 +63,9 @@ class BiT_TSFashionNet(nn.Module):
         self.attr_recog_fc = nn.Linear(4096, 1000)
         
         ### shape
-        self.shape_backbone = nn.Sequential(OrderedDict(islice(self.model._modules.items(), 2)))
+        self.shape_backbone = nn.Sequential(OrderedDict(islice(self.shape_model._modules.items(), 2)))
         # 다초기화
-        self.shape_backbone.apply(self._init_weight)
+        # self.shape_backbone.apply(self._init_weight)
         self.shape_stream = nn.Sequential(
             nn.Conv2d(2048*self.channel_factor, 1024, 1),
             nn.BatchNorm2d(1024),
@@ -109,6 +114,9 @@ class BiT_TSFashionNet(nn.Module):
     def forward(self, x, shape=False):
         ### shape
         shape_feature = self.shape_backbone(x)
+        #
+        shape_feature = self.shape_norm(shape_feature)
+
         shape_out = self.shape_stream(shape_feature)
         vis_out = torch.flatten(shape_out, start_dim=1)
         vis_out = self.vis_fc(vis_out)
@@ -121,6 +129,9 @@ class BiT_TSFashionNet(nn.Module):
         
         ### texture
         texture_out = self.texture_backbone(x)
+        #
+        texture_out = self.texture_norm(texture_out)
+
         cat_shape = shape_feature.clone().detach()
         texture_out = self.gate(texture_out, cat_shape)
         texture_out = self.texture_stream(texture_out)

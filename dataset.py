@@ -10,17 +10,12 @@ from torch.utils.data import Dataset
 
 from utils import lm_transforms
 
-# 이거 데이터셋을 굳이 두가지로 만들이유가 있을까?
-# 하나의 데이터셋으로 한다음에 그냥 사용만 안하고 필요한것만 넣어서 쓰면 되는거잖아..?
-# 어차피 에폭단위로 배치사이즈는 다시 도니까...
-
 
 LANDMARK_MAP = ['left_collar', 'right_collar', 'left_sleeve', 'right_sleeve',
                 'left_waistline', 'right_waistline', 'left_hem', 'right_hem']
-IMG_DIR = '/media/jaeho/SSD/datasets/deepfashion/img-001/'
 
 class TSDataset(Dataset):
-    def __init__(self, data_path, transform=None, flip=True):
+    def __init__(self, data_path, img_dir, transform=None, flip=True):
         super(TSDataset, self).__init__()
         
         self.transform = transform
@@ -28,6 +23,7 @@ class TSDataset(Dataset):
             raw_dict = pickle.load(f)
         self.raw_data = list(raw_dict.items())
         self.flip=flip
+        self.img_dir=img_dir
     
     def __len__(self):
         return len(self.raw_data)
@@ -97,7 +93,7 @@ class TSDataset(Dataset):
         img_path, data_dict = self.raw_data[index]
         landmark_info = data_dict['landmark']
         
-        img_path = os.path.join(IMG_DIR, img_path)
+        img_path = os.path.join(self.img_dir, img_path)
         if "Striped_A-Line_Dress" in img_path:
             img_path = img_path.replace("A-Line", "A-line")
         img = Image.open(img_path).convert("RGB")

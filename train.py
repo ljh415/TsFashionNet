@@ -33,6 +33,7 @@ def train():
     epochs = config['epochs']
     shape_lr = config['shape_lr']
     shape_epochs = config['shape_epochs']
+    img_dir = config['img_dir']
     
     # wandbv init ####################
     if config['name']:
@@ -92,8 +93,8 @@ def train():
     # top_3_recall = Recall(top_k=3).to(device)
     
     # dataset, loader
-    train_dataset = TSDataset(train_path, transform=train_transform)
-    valid_dataset = TSDataset(valid_path, transform=val_transform)
+    train_dataset = TSDataset(train_path, img_dir, transform=train_transform)
+    valid_dataset = TSDataset(valid_path, img_dir, transform=val_transform)
     
     train_dataloader = DataLoader(
         train_dataset,
@@ -496,7 +497,11 @@ def test():
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
-    test_dataset = TSDataset('/media/jaeho/SSD/datasets/deepfashion/split/test.pickle', transform=trans)
+    test_dataset = TSDataset(
+        data_path='/media/jaeho/SSD/datasets/deepfashion/split/test.pickle',
+        img_dir = config['img_dir'],
+        transform=trans
+    )
     test_dataloder = DataLoader(
         test_dataset,
         batch_size=1,
@@ -590,6 +595,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", type=str, default='train')
     parser.add_argument("--data_path", type=str, default='/media/jaeho/SSD/datasets/deepfashion/split/')
+    parser.add_argument("--img_dir", type=str, default='/media/jaeho/SSD/datasets/deepfashion/img-001/')
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--num_workers", type=int, default=16)
     parser.add_argument("--epochs", type=int, default=12)
