@@ -31,7 +31,8 @@ class BiT_TSFashionNet(nn.Module):
     def __init__(self, model_name, num_of_classes=1000, bit_classifier=False):
         super(BiT_TSFashionNet, self).__init__()
         self.bit_classifier = bit_classifier
-        self.model = timm.create_model(model_name, pretrained=True)
+        self.texture_model = timm.create_model(model_name, pretrained=True)
+        self.shape_model = timm.create_model(model_name, pretrained=False)
         self.channel_factor = 3 if 'x3' in model_name else 1
         self.gate = GateNet(self.channel_factor)
         
@@ -40,7 +41,7 @@ class BiT_TSFashionNet(nn.Module):
         self.texture_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
         
         ### texture
-        self.texture_backbone = nn.Sequential(OrderedDict(islice(self.model._modules.items(), 2)))
+        self.texture_backbone = nn.Sequential(OrderedDict(islice(self.texture_model._modules.items(), 2)))
         # 4번째 블럭 초기화
         self.texture_backbone._modules['stages']._modules['3'].apply(self._init_weight)
         # 3번째 까지는 freeze
@@ -62,9 +63,9 @@ class BiT_TSFashionNet(nn.Module):
         self.attr_recog_fc = nn.Linear(4096, 1000)
         
         ### shape
-        self.shape_backbone = nn.Sequential(OrderedDict(islice(self.model._modules.items(), 2)))
+        self.shape_backbone = nn.Sequential(OrderedDict(islice(self.shape_model._modules.items(), 2)))
         # 다초기화
-        self.shape_backbone.apply(self._init_weight)
+        # self.shape_backbone.apply(self._init_weight)
         self.shape_stream = nn.Sequential(
             nn.Conv2d(2048*self.channel_factor, 1024, 1),
             nn.BatchNorm2d(1024),
