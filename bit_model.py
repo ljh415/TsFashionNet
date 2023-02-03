@@ -115,7 +115,7 @@ class BiT_TSFashionNet(nn.Module):
         ### shape
         shape_feature = self.shape_backbone(x)
         #
-        shape_feature = self.shape_norm(shape_feature)
+        # shape_feature = self.shape_norm(shape_feature)
 
         shape_out = self.shape_stream(shape_feature)
         vis_out = torch.flatten(shape_out, start_dim=1)
@@ -130,7 +130,7 @@ class BiT_TSFashionNet(nn.Module):
         ### texture
         texture_out = self.texture_backbone(x)
         #
-        texture_out = self.texture_norm(texture_out)
+        # texture_out = self.texture_norm(texture_out)
 
         cat_shape = shape_feature.clone().detach()
         texture_out = self.gate(texture_out, cat_shape)
