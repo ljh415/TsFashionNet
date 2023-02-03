@@ -165,8 +165,8 @@ def train():
             ###########
             # new
             vis_loss, lm_loss = criterions(
-                preds = (_, _, visibility_batch, landmark_batch),
-                targets = (_, _, vis_out, loc_out),
+                preds = (vis_out, loc_out),
+                targets = (visibility_batch, landmark_batch),
                 shape = True
             )
             
@@ -225,8 +225,8 @@ def train():
                 
                 #########
                 vis_val_loss, lm_val_loss = criterions(
-                    preds = (_, _, visibility_batch, landmark_batch),
-                    targets = (_, _, vis_out, loc_out),
+                    preds = (vis_out, loc_out),
+                    targets = (visibility_batch, landmark_batch),
                     shape = True
                 )
                 
@@ -299,8 +299,8 @@ def train():
             ######################
             # new
             cat_loss, att_loss, vis_loss, lm_loss = criterions(
-                preds = (category_batch, attribute_batch, visibility_batch, landmark_batch),
-                targets = (category_out, attr_out, vis_out, loc_out),
+                preds = (category_out, attr_out, vis_out, loc_out),
+                targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
             )
             
             # before
@@ -390,8 +390,8 @@ def train():
                 category_out, attr_out, vis_out, loc_out = model(img_batch, shape=False)
                 ###############
                 cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterions(
-                    preds = (category_batch, attribute_batch, visibility_batch, landmark_batch),
-                    targets = (category_out, attr_out, vis_out, loc_out),
+                    preds = (category_out, attr_out, vis_out, loc_out),
+                    targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
                 )
                 
                 # loss

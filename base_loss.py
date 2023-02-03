@@ -20,11 +20,10 @@ class BaseLoss(nn.Module):
             pred (_type_): [cat_pred, att_pred, vis_pred, loc_pred]
             target (_type_): [cat_target, att_target, vis_target, loc_target]
         """
-        
-        cat_pred, att_pred, vis_pred, lm_pred,= preds
-        cat_target, att_target, vis_target, lm_target = targets
-        
         if shape:
+            vis_pred, lm_pred = preds
+            vis_target, lm_target = targets
+            
             vis_target = vis_target.to(device)
             lm_target = lm_target.to(device)
             
@@ -32,6 +31,9 @@ class BaseLoss(nn.Module):
             lm_loss = self.lm_criterion(lm_pred, vis_target, lm_target)
 
             return vis_loss, lm_loss
+        
+        cat_pred, att_pred, vis_pred, lm_pred = preds
+        cat_target, att_target, vis_target, lm_target = targets
         
         cat_target = cat_target.squeeze()
         
