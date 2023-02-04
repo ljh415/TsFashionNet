@@ -157,8 +157,8 @@ def train():
             shape_optimizer.zero_grad()
             
             img_batch = img_batch.to(device)
-            # landmark_batch = landmark_batch.to(device)
-            # visibility_batch = visibility_batch.to(device)
+            landmark_batch = landmark_batch.to(device)
+            visibility_batch = visibility_batch.to(device)
             
             vis_out, loc_out = model(img_batch, shape=True)  # training only shape biased stream
 
@@ -218,8 +218,8 @@ def train():
             for batch_idx, (img_batch, _, _, visibility_batch, landmark_batch) in enumerate(valid_dataloader):
                 
                 img_batch = img_batch.to(device)
-                # visibility_batch = visibility_batch.to(device)
-                # landmark_batch = landmark_batch.to(device)
+                visibility_batch = visibility_batch.to(device)
+                landmark_batch = landmark_batch.to(device)
                 
                 vis_out, loc_out = model(img_batch, shape=True)
                 
