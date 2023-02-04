@@ -289,10 +289,10 @@ def train():
             optimizer.zero_grad()
 
             img_batch = img_batch.to(device)
-            # category_batch = category_batch.squeeze().to(device)
-            # attribute_batch = attribute_batch.to(device)
-            # visibility_batch = visibility_batch.to(device)
-            # landmark_batch = landmark_batch.to(device)
+            category_batch = category_batch.squeeze().to(device)
+            attribute_batch = attribute_batch.to(device)
+            visibility_batch = visibility_batch.to(device)
+            landmark_batch = landmark_batch.to(device)
             
             category_out, attr_out, vis_out, loc_out = model(img_batch, shape=False)
             
@@ -382,10 +382,10 @@ def train():
             model.eval()
             for img_batch, category_batch, attribute_batch, visibility_batch, landmark_batch in valid_dataloader:
                 img_batch = img_batch.to(device)
-                # category_batch = category_batch.squeeze().to(device)
-                # attribute_batch = attribute_batch.to(device)
-                # visibility_batch = visibility_batch.to(device)
-                # landmark_batch = landmark_batch.to(device)
+                category_batch = category_batch.squeeze().to(device)
+                attribute_batch = attribute_batch.to(device)
+                visibility_batch = visibility_batch.to(device)
+                landmark_batch = landmark_batch.to(device)
                 
                 category_out, attr_out, vis_out, loc_out = model(img_batch, shape=False)
                 ###############

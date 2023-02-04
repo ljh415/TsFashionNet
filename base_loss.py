@@ -27,8 +27,8 @@ class BaseLoss(nn.Module):
             cat_pred, att_pred, vis_pred, lm_pred = preds
             cat_target, att_target, vis_target, lm_target = targets
             
-        vis_target = vis_target.to(device)
-        lm_target = lm_target.to(device)
+        # vis_target = vis_target.to(device)
+        # lm_target = lm_target.to(device)
         
         vis_loss = self.vis_criterion(vis_pred, vis_target)
         lm_loss = self.lm_criterion(lm_pred, vis_target, lm_target)
@@ -38,8 +38,8 @@ class BaseLoss(nn.Module):
         
         cat_target = cat_target.squeeze()
         
-        cat_target = cat_target.to(device)
-        att_target = att_target.to(device)
+        # cat_target = cat_target.to(device)
+        # att_target = att_target.to(device)
         
         cat_loss = self.category_creterion(cat_pred, cat_target)
         att_loss = self.attribute_creterion(att_pred, att_target)
