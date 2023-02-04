@@ -153,7 +153,6 @@ class BiT_TSFashionNet(nn.Module):
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
         
-        print(texture_out.shape)
         clothes_out = self.clothes_cls_fc(texture_out)
         clothes_out = torch.softmax(clothes_out, dim=0)
         
