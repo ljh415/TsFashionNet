@@ -42,11 +42,11 @@ sweep_configuration = {
             'name': 'valid_loss'
         },
         'parameters': {
-            'batch_size': {'values':[16, 32]},
-            'epochs': {'min':12, 'max':20},
+            'batch_size': {'values':[16]},
+            'epochs': {'min':12, 'max':15},
             'lr': {'min':1e-5, 'max':1e-2},
             'shape_epochs': {'min': 3, 'max': 5},
-            'shape_lr': {'min':1e-4, 'max':1e-2},
+            'shape_lr': {'min':5e-5, 'max':5e-3},
         }
     }
 }
