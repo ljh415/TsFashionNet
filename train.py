@@ -437,7 +437,7 @@ def train():
         
         val_attr_recall3 = running_val_attr_recall3 / len(valid_dataloader)
         val_attr_recall5 = running_val_attr_recall5 / len(valid_dataloader)
-         
+        
         
         print("> Validation loss : {:3f}, cat acc3: {:2f},  cat acc5: {:2f}, attr recall3: {:4f}, attr recall5: {:4f}\n".format(
             validation_loss, 
