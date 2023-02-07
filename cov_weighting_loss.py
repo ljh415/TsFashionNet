@@ -3,29 +3,33 @@ import torch
 from base_loss import BaseLoss
 
 class CoVLoss(BaseLoss):
-    def __init__(self, args):
-        super(CoVLoss, self).__init__(args.lm_rdcution)
+    def __init__(self, lm_reduction, mean_sort='full', mean_decay_param=1.0):
+        super(CoVLoss, self).__init__(lm_reduction)
         
-        self.mean_decay = True if args.mean_sort == 'decay' else False
-        self.mean_decay_param = args.mean_decay_param
+        self.mean_decay = True if mean_sort == 'decay' else False
+        self.mean_decay_param = mean_decay_param
         
         self.current_iter = -1
         self.alphas = torch.zeros((self.num_losses,), requires_grad=False).type(torch.FloatTensor).to(self.device)
         
         # Initialize all running statics at 0
-        self.running_mean_L = torch.zeros((self.num_lsses,), requires_grad=False).type(torch.FloatTensor).to(self.device)
-        self.running_mean_l = torch.zeros((self.num_lsses,), requires_grad=False).type(torch.FloatTensor).to(self.device)
-        self.running_S_l = torch.zeros((self.num_lsses,), requires_grad=False).type(torch.FloatTensor).to(self.device)
+        self.running_mean_L = torch.zeros((self.num_losses,), requires_grad=False).type(torch.FloatTensor).to(self.device)
+        self.running_mean_l = torch.zeros((self.num_losses,), requires_grad=False).type(torch.FloatTensor).to(self.device)
+        self.running_S_l = torch.zeros((self.num_losses,), requires_grad=False).type(torch.FloatTensor).to(self.device)
         self.running_std_l = None
     
-    def forward(self, pred, target):
-        unweighted_losses = list(super(CoVLoss, self).forward(pred, target))
+    def forward(self, preds, targets, mode, shape=False):
         # [cat_loss, att_loss, vis_loss, lm_loss]
+        unweighted_losses = list(super(CoVLoss, self).forward(preds, targets, shape))
+        
+        if shape:
+            zero_tensor = [torch.zeros(1).to(self.device) for _ in range(2)]
+            unweighted_losses = zero_tensor + unweighted_losses
         
         L = torch.tensor(unweighted_losses, requires_grad=False).to(self.device)
         
         ## validation 일땐 그대로 sum해서 return 
-        if not self.train:
+        if mode != 'train':
             return torch.sum(L)
         
         # increase iter
@@ -42,7 +46,7 @@ class CoVLoss(BaseLoss):
         else :
             ls = self.running_std_l / self.running_mean_l
             self.alphas = ls / torch.sum(ls)
-        
+
         # Apply welford's algorithm to keep running means, variances of L, l.
         # 1. Compute 
         if self.current_iter == 0:
@@ -67,6 +71,14 @@ class CoVLoss(BaseLoss):
         self.running_mean_L = mean_param * self.running_mean_L + (1 - mean_param) * x_L
         
         # get the weighted losses and perform a standard back-pass
-        weighted_losses = [self.alphas[i] * weighted_losses[i] for i in range(len(unweighted_losses))]
+        weighted_losses = [self.alphas[i] * unweighted_losses[i] for i in range(len(unweighted_losses))]
         loss = sum(weighted_losses)
+        
+        if shape:
+            self.running_mean_L[:2] = 1e-8
+            self.running_mean_l[:2] = 1e-8
+            self.running_S_l[:2] = 1e-8
+            if self.running_std_l is not None:
+                self.running_std_l[:2] = 1e-8
+        
         return loss
