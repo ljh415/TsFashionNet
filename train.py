@@ -157,8 +157,8 @@ def train():
             shape_optimizer.zero_grad()
             
             img_batch = img_batch.to(device)
-            # landmark_batch = landmark_batch.to(device)
-            # visibility_batch = visibility_batch.to(device)
+            landmark_batch = landmark_batch.to(device)
+            visibility_batch = visibility_batch.to(device)
             
             vis_out, loc_out = model(img_batch, shape=True)  # training only shape biased stream
 
@@ -218,8 +218,8 @@ def train():
             for batch_idx, (img_batch, _, _, visibility_batch, landmark_batch) in enumerate(valid_dataloader):
                 
                 img_batch = img_batch.to(device)
-                # visibility_batch = visibility_batch.to(device)
-                # landmark_batch = landmark_batch.to(device)
+                visibility_batch = visibility_batch.to(device)
+                landmark_batch = landmark_batch.to(device)
                 
                 vis_out, loc_out = model(img_batch, shape=True)
                 
@@ -289,10 +289,10 @@ def train():
             optimizer.zero_grad()
 
             img_batch = img_batch.to(device)
-            # category_batch = category_batch.squeeze().to(device)
-            # attribute_batch = attribute_batch.to(device)
-            # visibility_batch = visibility_batch.to(device)
-            # landmark_batch = landmark_batch.to(device)
+            category_batch = category_batch.squeeze().to(device)
+            attribute_batch = attribute_batch.to(device)
+            visibility_batch = visibility_batch.to(device)
+            landmark_batch = landmark_batch.to(device)
             
             category_out, attr_out, vis_out, loc_out = model(img_batch, shape=False)
             
@@ -382,10 +382,10 @@ def train():
             model.eval()
             for img_batch, category_batch, attribute_batch, visibility_batch, landmark_batch in valid_dataloader:
                 img_batch = img_batch.to(device)
-                # category_batch = category_batch.squeeze().to(device)
-                # attribute_batch = attribute_batch.to(device)
-                # visibility_batch = visibility_batch.to(device)
-                # landmark_batch = landmark_batch.to(device)
+                category_batch = category_batch.squeeze().to(device)
+                attribute_batch = attribute_batch.to(device)
+                visibility_batch = visibility_batch.to(device)
+                landmark_batch = landmark_batch.to(device)
                 
                 category_out, attr_out, vis_out, loc_out = model(img_batch, shape=False)
                 ###############
@@ -437,7 +437,7 @@ def train():
         
         val_attr_recall3 = running_val_attr_recall3 / len(valid_dataloader)
         val_attr_recall5 = running_val_attr_recall5 / len(valid_dataloader)
-         
+        
         
         print("> Validation loss : {:3f}, cat acc3: {:2f},  cat acc5: {:2f}, attr recall3: {:4f}, attr recall5: {:4f}\n".format(
             validation_loss, 
