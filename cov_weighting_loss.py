@@ -19,6 +19,54 @@ class CoVLoss(BaseLoss):
         self.running_std_l = None
     
     def forward(self, pred, target):
-        unweighted_losses = super(CoVLoss, self).forward(pred, target)
-        # 
-        pass
+        unweighted_losses = list(super(CoVLoss, self).forward(pred, target))
+        # [cat_loss, att_loss, vis_loss, lm_loss]
+        
+        L = torch.tensor(unweighted_losses, requires_grad=False).to(self.device)
+        
+        ## validation 일땐 그대로 sum해서 return 
+        if not self.train:
+            return torch.sum(L)
+        
+        # increase iter
+        self.current_iter += 1
+        
+        L0 = L.clone() if self.current_iter == 0 else self.running_mean_L
+        
+        # comput loss ration for current iteration given the current loss L
+        l = L / L0
+        
+        if self.current_iter <= 1:
+            self.alphas = torch.ones((self.num_losses,), requires_grad=False).type(torch.FloatTensor).to(self.device) / self.num_losses
+        # apply the loss weighing method
+        else :
+            ls = self.running_std_l / self.running_mean_l
+            self.alphas = ls / torch.sum(ls)
+        
+        # Apply welford's algorithm to keep running means, variances of L, l.
+        # 1. Compute 
+        if self.current_iter == 0:
+            mean_param = 0.0
+        elif self.current_iter > 0 and self.mean_decay:
+            mean_param = self.mean_decay_param
+        else :
+            mean_param = (1. - 1 / (self.current_iter +1))
+        
+        # 2. Update the statistics for l
+        x_l = l.clone().detach()
+        new_mean_l = mean_param * self.running_mean_l + (1 - mean_param) * x_l
+        self.running_S_l += (x_l - self.running_mean_l) * (x_l - new_mean_l)
+        self.running_mean_l = new_mean_l
+
+        # the variance is S / (t-1), but we have current_iter = t - 1
+        running_variance_l = self.running_S_l / (self.current_iter + 1)
+        self.running_std_l = torch.sqrt(running_variance_l + 1e-8)
+        
+        # 3. Update the statistics for L
+        x_L = L.clone().detach()
+        self.running_mean_L = mean_param * self.running_mean_L + (1 - mean_param) * x_L
+        
+        # get the weighted losses and perform a standard back-pass
+        weighted_losses = [self.alphas[i] * weighted_losses[i] for i in range(len(unweighted_losses))]
+        loss = sum(weighted_losses)
+        return loss
