@@ -43,10 +43,10 @@ sweep_configuration = {
         },
         'parameters': {
             'batch_size': {'values':[16]},
-            'epochs': {'min':12, 'max':15},
-            'lr': {'min':1e-5, 'max':1e-2},
+            # 'epochs': {'min':12, 'max':15},
+            'lr': {'min':1e-5, 'max':5.5e-3},
             'shape_epochs': {'min': 3, 'max': 5},
-            'shape_lr': {'min':5e-5, 'max':5e-3},
+            'shape_lr': {'min':5e-5, 'max':1.2e-3},
         }
     }
 }
