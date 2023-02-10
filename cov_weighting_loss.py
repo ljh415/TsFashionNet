@@ -32,7 +32,7 @@ class CoVLoss(BaseLoss):
         
         ## validation 일땐 그대로 sum해서 return 
         if mode != 'train':
-            return torch.sum(L)
+            return torch.sum(L), cat_loss, att_loss, vis_loss, lm_loss
         
         # increase iter
         self.current_iter += 1
