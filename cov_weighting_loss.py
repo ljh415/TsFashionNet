@@ -26,6 +26,8 @@ class CoVLoss(BaseLoss):
             zero_tensor = [torch.zeros(1).to(self.device) for _ in range(2)]
             unweighted_losses = zero_tensor + unweighted_losses
         
+        cat_loss, att_loss, vis_loss, lm_loss = unweighted_losses
+        
         L = torch.tensor(unweighted_losses, requires_grad=False).to(self.device)
         
         ## validation 일땐 그대로 sum해서 return 
@@ -81,4 +83,4 @@ class CoVLoss(BaseLoss):
             if self.running_std_l is not None:
                 self.running_std_l[:2] = 1e-8
         
-        return loss
+        return loss, cat_loss, att_loss, vis_loss, lm_loss
