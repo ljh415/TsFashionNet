@@ -182,7 +182,7 @@ def train():
             
             # loss = vis_loss + lm_loss
             
-            loss, _, _, vis_loss, lm_loss = criterions(
+            loss, _, _, vis_loss, lm_loss, _ = criterions(
                 preds=(vis_out, loc_out),
                 targets=(visibility_batch, landmark_batch),
                 shape=True,
@@ -296,6 +296,8 @@ def train():
         running_train_category_acc3, running_train_category_acc5 = 0, 0
         running_train_attr_recall3, running_train_attr_recall5 = 0, 0
         
+        running_loss_weights = torch.zeros(4)
+        
         now_lr = lr_scheduler.optimizer.param_groups[0]['lr']
         running_train_loss = 0
         running_landmark_loss, running_visibility_loss, running_category_loss, running_attribute_loss = 0, 0, 0, 0
@@ -303,7 +305,7 @@ def train():
         for batch_idx, (img_batch, category_batch, attribute_batch, visibility_batch, landmark_batch) in enumerate(train_dataloader):
             
             optimizer.zero_grad()
-
+            
             img_batch = img_batch.to(device)
             category_batch = category_batch.squeeze().to(device)
             attribute_batch = attribute_batch.to(device)
@@ -331,12 +333,14 @@ def train():
             
             # loss = cat_loss + 500*att_loss + lm_loss + vis_loss
             
-            loss, cat_loss, att_loss, vis_loss, lm_loss = criterions(
+            loss, cat_loss, att_loss, vis_loss, lm_loss, loss_weights = criterions(
                 preds = (category_out, attr_out, vis_out, loc_out),
                 targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
                 mode='train'
             )
             
+            # sum loss-weight
+            running_loss_weights += loss_weights.detach().cpu()
             
             # loss calc
             running_train_loss += loss.detach().cpu().numpy().item()
@@ -375,7 +379,6 @@ def train():
                                 running_train_category_acc5 / (batch_idx+1),
                                 running_train_attr_recall3 / (batch_idx+1),
                                 running_train_attr_recall5 / (batch_idx+1)
-                                
                             )
             )
             
@@ -387,6 +390,9 @@ def train():
         visibility_loss = running_visibility_loss / len(train_dataloader)
         category_loss = running_category_loss / len(train_dataloader)
         attribute_loss = running_attribute_loss / len(train_dataloader)
+        
+        #
+        train_loss_weights = running_loss_weights / len(train_dataloader)
         
         train_cat_acc3 = running_train_category_acc3 / len(train_dataloader)
         train_cat_acc5 = running_train_category_acc5 / len(train_dataloader)
@@ -431,7 +437,7 @@ def train():
                 val_loss, cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterions(
                     preds = (category_out, attr_out, vis_out, loc_out),
                     targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
-                    mode='train'
+                    mode='valid'
                 )
                 
                 running_val_loss += val_loss.item()
@@ -504,6 +510,11 @@ def train():
                 "valid_landmark": validation_landmark_loss,
                 "valid_visibility": validation_visibility_loss,
                 "valid_loss": validation_loss,
+                # loss weights
+                "cat_loss_weight": train_loss_weights[0],
+                "att_loss_weight": train_loss_weights[1],
+                "vis_loss_weight": train_loss_weights[2],
+                "lm_loss_weight": train_loss_weights[3]
             }
             
             wandb.log(wandb_status)

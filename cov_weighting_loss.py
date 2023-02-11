@@ -83,4 +83,4 @@ class CoVLoss(BaseLoss):
             if self.running_std_l is not None:
                 self.running_std_l[:2] = 1e-8
         
-        return loss, cat_loss, att_loss, vis_loss, lm_loss
+        return loss, cat_loss, att_loss, vis_loss, lm_loss, self.alphas
