@@ -3,8 +3,10 @@ import torch
 from base_loss import BaseLoss
 
 class CoVLoss(BaseLoss):
-    def __init__(self, lm_reduction, mean_sort='full', mean_decay_param=1.0):
-        super(CoVLoss, self).__init__(lm_reduction)
+    def __init__(self, lm_reduction, shape_only=False, mean_sort='full', mean_decay_param=1.0):
+        super(CoVLoss, self).__init__(lm_reduction, shape_only)
+        
+        self.shape = shape_only
         
         self.mean_decay = True if mean_sort == 'decay' else False
         self.mean_decay_param = mean_decay_param
@@ -18,21 +20,28 @@ class CoVLoss(BaseLoss):
         self.running_S_l = torch.zeros((self.num_losses,), requires_grad=False).type(torch.FloatTensor).to(self.device)
         self.running_std_l = None
     
-    def forward(self, preds, targets, mode, shape=False):
+    def forward(self, preds, targets, mode):
         # [cat_loss, att_loss, vis_loss, lm_loss]
-        unweighted_losses = list(super(CoVLoss, self).forward(preds, targets, shape))
+        unweighted_losses = list(super(CoVLoss, self).forward(preds, targets, self.shape))
         
-        if shape:
-            zero_tensor = [torch.zeros(1).to(self.device) for _ in range(2)]
-            unweighted_losses = zero_tensor + unweighted_losses
-        
-        cat_loss, att_loss, vis_loss, lm_loss = unweighted_losses
+        # if shape:
+        #     zero_tensor = [torch.zeros(1).to(self.device) for _ in range(2)]
+        #     unweighted_losses = zero_tensor + unweighted_losses
+        # if shape 분기문은 새롭게 다 추가한 부분
+
+        if self.shape :
+            vis_loss, lm_loss = unweighted_losses
+        else :
+            cat_loss, att_loss, vis_loss, lm_loss = unweighted_losses
         
         L = torch.tensor(unweighted_losses, requires_grad=False).to(self.device)
         
         ## validation 일땐 그대로 sum해서 return 
         if mode != 'train':
-            return torch.sum(L), cat_loss, att_loss, vis_loss, lm_loss
+            if self.shape:
+                return torch.sum(L), vis_loss, lm_loss
+            else:
+                return torch.sum(L), cat_loss, att_loss, vis_loss, lm_loss
         
         # increase iter
         self.current_iter += 1
@@ -76,11 +85,14 @@ class CoVLoss(BaseLoss):
         weighted_losses = [self.alphas[i] * unweighted_losses[i] for i in range(len(unweighted_losses))]
         loss = sum(weighted_losses)
         
-        if shape:
-            self.running_mean_L[:2] = 1e-8
-            self.running_mean_l[:2] = 1e-8
-            self.running_S_l[:2] = 1e-8
-            if self.running_std_l is not None:
-                self.running_std_l[:2] = 1e-8
+        # if self.shape:
+        #     self.running_mean_L[:2] = 1e-8
+        #     self.running_mean_l[:2] = 1e-8
+        #     self.running_S_l[:2] = 1e-8
+        #     if self.running_std_l is not None:
+        #         self.running_std_l[:2] = 1e-8
         
-        return loss, cat_loss, att_loss, vis_loss, lm_loss, self.alphas
+        if self.shape:
+            return loss, vis_loss, lm_loss, self.alphas
+        else :
+            return loss, cat_loss, att_loss, vis_loss, lm_loss, self.alphas

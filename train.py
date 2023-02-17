@@ -114,7 +114,8 @@ def train():
     ##########
     # new
     # criterions = BaseLoss(config['reduction'])
-    criterions = CoVLoss(config['reduction'])
+    criterions = CoVLoss(config['reduction'], shape_only=False)
+    shape_criterions = CoVLoss(config['reduction'], shape_only=True)
     
     # before
     # lm_criterion = LandmarkLoss(config['reduction']).to(device)
@@ -182,10 +183,10 @@ def train():
             
             # loss = vis_loss + lm_loss
             
-            loss, _, _, vis_loss, lm_loss, _ = criterions(
+            loss, vis_loss, lm_loss, _ = shape_criterions(
                 preds=(vis_out, loc_out),
                 targets=(visibility_batch, landmark_batch),
-                shape=True,
+                # shape=True,
                 mode='train'
             )
             
@@ -208,7 +209,7 @@ def train():
             )
             
             if args.logging_shape_train:
-                if args.wandb and batch_idx % 50 == 0 :
+                if args.wandb and batch_idx % 5 == 0 :
                     wandb.log({
                         "shape_stream-train_lm_loss": running_landmark_loss/(batch_idx+1),
                         "shape_stream-train_vis_loss": running_visibility_loss/(batch_idx+1),
@@ -246,10 +247,10 @@ def train():
                 
                 # val_loss = vis_val_loss + lm_val_loss
                 
-                val_loss, _, _, vis_val_loss, lm_val_loss = criterions(
+                val_loss, vis_val_loss, lm_val_loss = shape_criterions(
                     preds=(vis_out, loc_out),
                     targets=(visibility_batch, landmark_batch),
-                    shape=True,
+                    # shape=True,
                     mode='valid'
                 )
                 
@@ -258,7 +259,7 @@ def train():
                 running_visibility_val_loss += vis_val_loss.item()
 
                 if args.logging_shape_train:
-                    if args.wandb and batch_idx % 50 == 0 :
+                    if args.wandb and batch_idx % 5 == 0 :
                         wandb.log({
                             "shape_stream-val_lm_loss": running_landmark_val_loss/(batch_idx+1),
                             "shape_stream-val_vis_loss": running_visibility_val_loss/(batch_idx+1),
@@ -270,8 +271,8 @@ def train():
         print("Validation loss : {:3f}\n".format(validation_loss))
         
         if args.logging_shape_train:
-            if epoch % args.freq_checkpoint == 0:
-                checkpoint_save(model, save_dir, epoch, validation_loss)
+            # if epoch % args.freq_checkpoint == 0:
+            #     checkpoint_save(model, save_dir, epoch, validation_loss)
             if args.wandb:
                 wandb.log({
                     "train_loss": running_shape_loss / len(train_dataloader),
