@@ -35,6 +35,7 @@ def train():
     shape_lr = config['shape_lr']
     shape_epochs = config['shape_epochs']
     img_dir = config['img_dir']
+    cov = config['cov']
     
     # wandbv init ####################
     if config['name']:
@@ -113,9 +114,11 @@ def train():
     )
     ##########
     # new
-    # criterions = BaseLoss(config['reduction'])
-    criterions = CoVLoss(config['reduction'], shape_only=False)
-    shape_criterions = CoVLoss(config['reduction'], shape_only=True)
+    if cov:
+        criterions = CoVLoss(config['reduction'], shape_only=False)
+        shape_criterions = CoVLoss(config['reduction'], shape_only=True)
+    else :
+        criterions = BaseLoss(config['reduction'])
     
     # before
     # lm_criterion = LandmarkLoss(config['reduction']).to(device)
@@ -134,9 +137,9 @@ def train():
     shape_optimizer = torch.optim.Adam(model.parameters(), lr=shape_lr)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     # scheduler
-    if config['sweep']:
+    if config['sweep'] or config['scheduler']=='plat':
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min', factor=0.1,
-                                                                  patience=2, verbose=True)
+                                                                  patience=args.patience, verbose=True)
     else :
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=config['milestones'], gamma=0.1, verbose=True)
     
@@ -164,36 +167,26 @@ def train():
             visibility_batch = visibility_batch.to(device)
             
             vis_out, loc_out = model(img_batch, shape=True)  # training only shape biased stream
-
-            ###########
-            # new
-            # vis_loss, lm_loss = criterions(
-            #     preds = (vis_out, loc_out),
-            #     targets = (visibility_batch, landmark_batch),
-            #     shape = True
-            # )
             
-            # before
-            # loss
-            # lm_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
-            # vis_loss = vis_criterion(vis_out, visibility_batch)
-            
-            ###########
-            
-            
-            # loss = vis_loss + lm_loss
-            
-            loss, vis_loss, lm_loss, _ = shape_criterions(
+            if cov:
+                loss, vis_loss, lm_loss, _ = shape_criterions(
                 preds=(vis_out, loc_out),
                 targets=(visibility_batch, landmark_batch),
-                # shape=True,
                 mode='train'
             )
+            else :
+                vis_loss, lm_loss = criterions(
+                    preds = (vis_out, loc_out),
+                    targets = (visibility_batch, landmark_batch),
+                    shape = True
+                )
+                
+                loss = vis_loss + lm_loss
             
             # loss calc
             running_shape_loss += loss.detach().cpu().numpy().item()
-            # running_landmark_loss += lm_loss.detach().cpu().numpy().item()
-            # running_visibility_loss += vis_loss.detach().cpu().numpy().item()
+            running_landmark_loss += lm_loss.detach().cpu().numpy().item()
+            running_visibility_loss += vis_loss.detach().cpu().numpy().item()
             
             loss.backward()
             shape_optimizer.step()
@@ -233,26 +226,20 @@ def train():
                 
                 vis_out, loc_out = model(img_batch, shape=True)
                 
-                #########
-                # vis_val_loss, lm_val_loss = criterions(
-                #     preds = (vis_out, loc_out),
-                #     targets = (visibility_batch, landmark_batch),
-                #     shape = True
-                # )
-                
-                # lm_val_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
-                # vis_val_loss = vis_criterion(vis_out, visibility_batch)
-                
-                ##########
-                
-                # val_loss = vis_val_loss + lm_val_loss
-                
-                val_loss, vis_val_loss, lm_val_loss = shape_criterions(
-                    preds=(vis_out, loc_out),
-                    targets=(visibility_batch, landmark_batch),
-                    # shape=True,
-                    mode='valid'
-                )
+                if cov:
+                    val_loss, vis_val_loss, lm_val_loss = shape_criterions(
+                        preds=(vis_out, loc_out),
+                        targets=(visibility_batch, landmark_batch),
+                        mode='valid'
+                    )
+                else :
+                    vis_val_loss, lm_val_loss = criterions(
+                        preds = (vis_out, loc_out),
+                        targets = (visibility_batch, landmark_batch),
+                        shape = True
+                    )
+                    
+                    val_loss = vis_val_loss + lm_val_loss
                 
                 running_val_loss += val_loss.item()
                 running_landmark_val_loss += lm_val_loss.item()
@@ -292,7 +279,6 @@ def train():
         model.train()
         
         step = 0
-        # running_train_category_acc, running_train_attr_recall = 0, 0
         
         running_train_category_acc3, running_train_category_acc5 = 0, 0
         running_train_attr_recall3, running_train_attr_recall5 = 0, 0
@@ -317,31 +303,25 @@ def train():
             
             ######################
             # new
-            # cat_loss, att_loss, vis_loss, lm_loss = criterions(
-            #     preds = (category_out, attr_out, vis_out, loc_out),
-            #     targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
-            # )
+            if cov:
+                loss, cat_loss, att_loss, vis_loss, lm_loss, loss_weights = criterions(
+                    preds = (category_out, attr_out, vis_out, loc_out),
+                    targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
+                    mode='train'
+                )
+                
+                # sum loss-weight
+                running_loss_weights += loss_weights.detach().cpu()
+                
+            else :
+                cat_loss, att_loss, vis_loss, lm_loss = criterions(
+                    preds = (category_out, attr_out, vis_out, loc_out),
+                    targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
+                )
             
+                loss = cat_loss + 500*att_loss + lm_loss + vis_loss
+                
             
-            # before
-            # loss
-            # lm_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
-            # vis_loss = vis_criterion(vis_out, visibility_batch)
-            # cat_loss = category_criterion(category_out, category_batch)
-            # att_loss = attribute_cretierion(attr_out, attribute_batch)
-            
-            ######################
-            
-            # loss = cat_loss + 500*att_loss + lm_loss + vis_loss
-            
-            loss, cat_loss, att_loss, vis_loss, lm_loss, loss_weights = criterions(
-                preds = (category_out, attr_out, vis_out, loc_out),
-                targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
-                mode='train'
-            )
-            
-            # sum loss-weight
-            running_loss_weights += loss_weights.detach().cpu()
             
             # loss calc
             running_train_loss += loss.detach().cpu().numpy().item()
@@ -392,8 +372,8 @@ def train():
         category_loss = running_category_loss / len(train_dataloader)
         attribute_loss = running_attribute_loss / len(train_dataloader)
         
-        #
-        train_loss_weights = running_loss_weights / len(train_dataloader)
+        if cov:
+            train_loss_weights = running_loss_weights / len(train_dataloader)
         
         train_cat_acc3 = running_train_category_acc3 / len(train_dataloader)
         train_cat_acc5 = running_train_category_acc5 / len(train_dataloader)
@@ -402,7 +382,6 @@ def train():
         train_attr_recall5 = running_train_attr_recall5 / len(train_dataloader)
         
         ## validate  #########
-        # running_val_category_acc, running_val_attr_recall = 0, 0
         running_val_category_acc3, running_val_category_acc5 = 0, 0
         running_val_attr_recall3, running_val_attr_recall5 = 0, 0
         
@@ -419,27 +398,20 @@ def train():
                 landmark_batch = landmark_batch.to(device)
                 
                 category_out, attr_out, vis_out, loc_out = model(img_batch, shape=False)
-                ###############
-                # cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterions(
-                #     preds = (category_out, attr_out, vis_out, loc_out),
-                #     targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
-                # )
                 
-                # loss
-                # lm_val_loss = lm_criterion(loc_out, visibility_batch, landmark_batch)
-                # vis_val_loss = vis_criterion(vis_out, visibility_batch)
-                # cat_val_loss = category_criterion(category_out, category_batch)
-                # att_val_loss = attribute_cretierion(attr_out, attribute_batch)
+                if cov:
+                    val_loss, cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterions(
+                        preds = (category_out, attr_out, vis_out, loc_out),
+                        targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
+                        mode='valid'
+                    )
+                else:
+                    cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterions(
+                        preds = (category_out, attr_out, vis_out, loc_out),
+                        targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
+                    )
                 
-                ################
-                
-                # val_loss = cat_val_loss + 500*att_val_loss + lm_val_loss + vis_val_loss
-                
-                val_loss, cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterions(
-                    preds = (category_out, attr_out, vis_out, loc_out),
-                    targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
-                    mode='valid'
-                )
+                    val_loss = cat_val_loss + 500*att_val_loss + lm_val_loss + vis_val_loss
                 
                 running_val_loss += val_loss.item()
                 running_landmark_val_loss += lm_val_loss.item()
@@ -511,12 +483,12 @@ def train():
                 "valid_landmark": validation_landmark_loss,
                 "valid_visibility": validation_visibility_loss,
                 "valid_loss": validation_loss,
-                # loss weights
-                "cat_loss_weight": train_loss_weights[0],
-                "att_loss_weight": train_loss_weights[1],
-                "vis_loss_weight": train_loss_weights[2],
-                "lm_loss_weight": train_loss_weights[3]
             }
+            if cov:
+                wandb_status['cat_loss_weight'] = train_loss_weights[0]
+                wandb_status['att_loss_weight'] = train_loss_weights[1]
+                wandb_status['vis_loss_weight'] = train_loss_weights[2]
+                wandb_status['lm_loss_weight'] = train_loss_weights[3]
             
             wandb.log(wandb_status)
 
@@ -659,6 +631,9 @@ if __name__ == "__main__":
     parser.add_argument("--bit_model_name", type=str, default=None)
     parser.add_argument("--sweep", action='store_true')
     parser.add_argument("--sweep_count", type=int, default=3)
+    parser.add_argument("--cov", action='store_true')
+    parser.add_argument("--scheduler", type=str, default=None)
+    parser.add_argument("--patience", type=int, default=2)
     
     args = parser.parse_args()
     args.milestones = list(map(int, args.milestones.split(',')))
