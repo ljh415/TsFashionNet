@@ -4,14 +4,18 @@ from utils import device
 from custom_loss import LandmarkLoss
 
 class BaseLoss(nn.Module):
-    def __init__(self, lm_reduction):
+    def __init__(self, lm_reduction, shape_only=False):
         super(BaseLoss, self).__init__()
         
-        # 4개 loss
-        self.lm_criterion = LandmarkLoss(lm_reduction).to(device)
-        self.vis_criterion = nn.BCELoss().to(device)
-        self.category_creterion = nn.CrossEntropyLoss().to(device)
-        self.attribute_creterion = nn.BCELoss().to(device)
+        self.device = device
+        self.num_losses = 2
+        self.lm_criterion = LandmarkLoss(lm_reduction).to(self.device)
+        self.vis_criterion = nn.BCELoss().to(self.device)
+        
+        if not shape_only:
+            self.num_losses = 4
+            self.category_creterion = nn.CrossEntropyLoss().to(self.device)
+            self.attribute_creterion = nn.BCELoss().to(self.device)
     
     def forward(self, preds, targets, shape=False):
         """_summary_
@@ -44,4 +48,4 @@ class BaseLoss(nn.Module):
         cat_loss = self.category_creterion(cat_pred, cat_target)
         att_loss = self.attribute_creterion(att_pred, att_target)
         
-        return cat_loss, att_loss, vis_loss, lm_loss,
+        return cat_loss, att_loss, vis_loss, lm_loss
