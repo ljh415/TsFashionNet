@@ -138,7 +138,7 @@ def train():
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     # scheduler
     if config['sweep'] or config['scheduler']=='plat':
-        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min', factor=0.1,
+        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min', factor=args.decay_factor,
                                                                   patience=args.patience, verbose=True)
     else :
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=config['milestones'], gamma=0.1, verbose=True)
@@ -634,6 +634,7 @@ if __name__ == "__main__":
     parser.add_argument("--cov", action='store_true')
     parser.add_argument("--scheduler", type=str, default=None)
     parser.add_argument("--patience", type=int, default=2)
+    parser.add_argument("--decay_factor", type=float, default=0.1)
     
     args = parser.parse_args()
     args.milestones = list(map(int, args.milestones.split(',')))
