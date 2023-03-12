@@ -130,14 +130,12 @@ def train():
     # model
     if config['backbone'] == 'vgg':
         model = TSFashionNet().to(device)
+        shape_optimizer = torch.optim.Adam(model.parameters(), lr=shape_lr)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     elif config['backbone'] == 'bit' :
         model = BiT_TSFashionNet(model_name=config['bit_model_name']).to(device)
-    
-    # optimizer
-    # shape_optimizer = torch.optim.Adam(model.parameters(), lr=shape_lr)
-    # optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    shape_optimizer = torch.optim.SGD(model.parameters(), lr=shape_lr, momentum=0.9)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+        shape_optimizer = torch.optim.SGD(model.parameters(), lr=shape_lr, momentum=0.9)
+        optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
     
     # scheduler
     if config['sweep'] or config['scheduler']=='plat':
