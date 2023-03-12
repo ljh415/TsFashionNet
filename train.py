@@ -35,14 +35,9 @@ def train():
     shape_lr = config['shape_lr']
     shape_epochs = config['shape_epochs']
     img_dir = config['img_dir']
-    # cov = config['cov']
-    
-    ###
-    multi_loss = config['multi_loss']
     cov_epoch = config['cov_epoch']
-    att_weight = config['att_weight']
-    ###
-    
+    att_weight = config['att_weight']    
+    loss_mode = config['loss_mode']
     
     # wandbv init ####################
     if config['name']:
@@ -65,13 +60,12 @@ def train():
             wandb.init(entity="ljh415", project=config['project'], dir='/media/jaeho/HDD/wandb/',
                    name=wandb_name, config=config)
     
-    # checkpoint save directory ######
+    # checkpoint save directory
     save_dir = os.path.join(config['ckpt_savedir'], config['project'], wandb_name)
     
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     
-    ######
     
     train_path = os.path.join(config['data_path'], 'train.pickle')
     valid_path = os.path.join(config['data_path'], 'valid.pickle')
@@ -119,28 +113,23 @@ def train():
         num_workers=num_workers,
         pin_memory=True
     )
-    ##########
-    # new
-    if multi_loss:
-        criterions = {
+    
+    if loss_mode == 'base':
+        criterion_dict = {
+            'base': BaseLoss(config['reduction'])
+        }
+    elif loss_mode == 'cov':
+        criterion_dict = {
+            'shape': CoVLoss(config['reduction'], shape_only=True),
+            'all' : CoVLoss(config['reduction'], shape_only=False)
+        }
+    elif loss_mode == 'multi':
+        criterion_dict = {
             'cov': CoVLoss(config['reduction'], shape_only=False),
             'base': BaseLoss(config['reduction'])
         }
-    
-    # if cov:
-    #     criterions = CoVLoss(config['reduction'], shape_only=False)
-    #     shape_criterions = CoVLoss(config['reduction'], shape_only=True)
-    # else :
-    #     criterions = BaseLoss(config['reduction'])
-    
-    
-    
-    # before
-    # lm_criterion = LandmarkLoss(config['reduction']).to(device)
-    # vis_criterion = nn.BCELoss().to(device)
-    # category_criterion = nn.CrossEntropyLoss().to(device)
-    # attribute_cretierion = nn.BCELoss().to(device)
-    ##########
+    else :
+        raise Exception("Wrong loss mode.")
     
     # model
     if config['backbone'] == 'vgg':
@@ -163,127 +152,127 @@ def train():
     else :
         print_config(config, model, trainable=True)
     
-    # print(f"{'='*20} training only shape {'='*20}")
+    print(f"{'='*20} training only shape {'='*20}")
     
     #### shape먼저 3epoch
-    # for epoch in range(shape_epochs):
-    #     model.train()
+    for epoch in range(shape_epochs):
+        model.train()
         
-    #     step = 0
-    #     running_shape_loss = 0
-    #     running_landmark_loss, running_visibility_loss = 0, 0
+        step = 0
+        running_shape_loss = 0
+        running_landmark_loss, running_visibility_loss = 0, 0
         
-    #     for batch_idx, (img_batch, _, _, visibility_batch, landmark_batch) in enumerate(train_dataloader):
+        for batch_idx, (img_batch, _, _, visibility_batch, landmark_batch) in enumerate(train_dataloader):
             
-    #         shape_optimizer.zero_grad()
+            shape_optimizer.zero_grad()
             
-    #         img_batch = img_batch.to(device)
-    #         landmark_batch = landmark_batch.to(device)
-    #         visibility_batch = visibility_batch.to(device)
+            img_batch = img_batch.to(device)
+            landmark_batch = landmark_batch.to(device)
+            visibility_batch = visibility_batch.to(device)
             
-    #         vis_out, loc_out = model(img_batch, shape=True)  # training only shape biased stream
+            vis_out, loc_out = model(img_batch, shape=True)  # training only shape biased stream
             
-    #         if cov:
-    #             loss, vis_loss, lm_loss, _ = shape_criterions(
-    #             preds=(vis_out, loc_out),
-    #             targets=(visibility_batch, landmark_batch),
-    #             mode='train'
-    #         )
-    #         else :
-    #             vis_loss, lm_loss = criterions(
-    #                 preds = (vis_out, loc_out),
-    #                 targets = (visibility_batch, landmark_batch),
-    #                 shape = True
-    #             )
+            if loss_mode == 'cov':
+                loss, vis_loss, lm_loss, _ = criterion_dict['shape'](
+                    preds=(vis_out, loc_out),
+                    targets=(visibility_batch, landmark_batch),
+                    mode='train'
+                )
+            else : # loss_mode == 'base'
+                vis_loss, lm_loss = criterion_dict['base'](
+                    preds = (vis_out, loc_out),
+                    targets = (visibility_batch, landmark_batch),
+                    shape = True
+                )
                 
-    #             loss = vis_loss + lm_loss
+                loss = vis_loss + lm_loss
             
-    #         # loss calc
-    #         running_shape_loss += loss.detach().cpu().numpy().item()
-    #         running_landmark_loss += lm_loss.detach().cpu().numpy().item()
-    #         running_visibility_loss += vis_loss.detach().cpu().numpy().item()
+            # loss calc
+            running_shape_loss += loss.detach().cpu().numpy().item()
+            running_landmark_loss += lm_loss.detach().cpu().numpy().item()
+            running_visibility_loss += vis_loss.detach().cpu().numpy().item()
             
-    #         loss.backward()
-    #         shape_optimizer.step()
-    #         step += 1
+            loss.backward()
+            shape_optimizer.step()
+            step += 1
             
-    #         status = (
-    #             "\r> epoch: {:3d} > step: {:3d} > loss: {:.3f}, lr: {} ".format(
-    #                             epoch+1,
-    #                             step,
-    #                             running_shape_loss/(batch_idx+1),
-    #                             shape_lr,
-    #                         )
-    #         )
+            status = (
+                "\r> epoch: {:3d} > step: {:3d} > loss: {:.3f}, lr: {} ".format(
+                                epoch+1,
+                                step,
+                                running_shape_loss/(batch_idx+1),
+                                shape_lr,
+                            )
+            )
             
-    #         if args.logging_shape_train:
-    #             if args.wandb and batch_idx % 5 == 0 :
-    #                 wandb.log({
-    #                     "shape_stream-train_lm_loss": running_landmark_loss/(batch_idx+1),
-    #                     "shape_stream-train_vis_loss": running_visibility_loss/(batch_idx+1),
-    #                     "shape_stream-train_total_loss": running_shape_loss/(batch_idx+1),
-    #                 })
+            if args.logging_shape_train:
+                if args.wandb and batch_idx % 5 == 0 :
+                    wandb.log({
+                        "shape_stream-train_lm_loss": running_landmark_loss/(batch_idx+1),
+                        "shape_stream-train_vis_loss": running_visibility_loss/(batch_idx+1),
+                        "shape_stream-train_total_loss": running_shape_loss/(batch_idx+1),
+                    })
 
-    #         print(status, end="")
-    #     print()
+            print(status, end="")
+        print()
         
-    #     ## validate  #########
-    #     running_val_loss = 0
-    #     running_landmark_val_loss, running_visibility_val_loss = 0, 0
+        ## validate  #########
+        running_val_loss = 0
+        running_landmark_val_loss, running_visibility_val_loss = 0, 0
         
-    #     with torch.no_grad():
-    #         model.eval()
-    #         for batch_idx, (img_batch, _, _, visibility_batch, landmark_batch) in enumerate(valid_dataloader):
+        with torch.no_grad():
+            model.eval()
+            for batch_idx, (img_batch, _, _, visibility_batch, landmark_batch) in enumerate(valid_dataloader):
                 
-    #             img_batch = img_batch.to(device)
-    #             visibility_batch = visibility_batch.to(device)
-    #             landmark_batch = landmark_batch.to(device)
+                img_batch = img_batch.to(device)
+                visibility_batch = visibility_batch.to(device)
+                landmark_batch = landmark_batch.to(device)
                 
-    #             vis_out, loc_out = model(img_batch, shape=True)
+                vis_out, loc_out = model(img_batch, shape=True)
                 
-    #             if cov:
-    #                 val_loss, vis_val_loss, lm_val_loss = shape_criterions(
-    #                     preds=(vis_out, loc_out),
-    #                     targets=(visibility_batch, landmark_batch),
-    #                     mode='valid'
-    #                 )
-    #             else :
-    #                 vis_val_loss, lm_val_loss = criterions(
-    #                     preds = (vis_out, loc_out),
-    #                     targets = (visibility_batch, landmark_batch),
-    #                     shape = True
-    #                 )
+                if loss_mode == 'cov':
+                    val_loss, vis_val_loss, lm_val_loss = criterion_dict['shape'](
+                        preds=(vis_out, loc_out),
+                        targets=(visibility_batch, landmark_batch),
+                        mode='valid'
+                    )
+                else :  # loss_mode == 'base'
+                    vis_val_loss, lm_val_loss = criterion_dict['base'](
+                        preds = (vis_out, loc_out),
+                        targets = (visibility_batch, landmark_batch),
+                        shape = True
+                    )
                     
-    #                 val_loss = vis_val_loss + lm_val_loss
+                    val_loss = vis_val_loss + lm_val_loss
                 
-    #             running_val_loss += val_loss.item()
-    #             running_landmark_val_loss += lm_val_loss.item()
-    #             running_visibility_val_loss += vis_val_loss.item()
+                running_val_loss += val_loss.item()
+                running_landmark_val_loss += lm_val_loss.item()
+                running_visibility_val_loss += vis_val_loss.item()
 
-    #             if args.logging_shape_train:
-    #                 if args.wandb and batch_idx % 5 == 0 :
-    #                     wandb.log({
-    #                         "shape_stream-val_lm_loss": running_landmark_val_loss/(batch_idx+1),
-    #                         "shape_stream-val_vis_loss": running_visibility_val_loss/(batch_idx+1),
-    #                         "shape_stream-val_total_loss": running_val_loss/(batch_idx+1),
-    #                     })
+                if args.logging_shape_train:
+                    if args.wandb and batch_idx % 5 == 0 :
+                        wandb.log({
+                            "shape_stream-val_lm_loss": running_landmark_val_loss/(batch_idx+1),
+                            "shape_stream-val_vis_loss": running_visibility_val_loss/(batch_idx+1),
+                            "shape_stream-val_total_loss": running_val_loss/(batch_idx+1),
+                        })
                 
-    #     validation_loss = running_val_loss / len(valid_dataloader)
+        validation_loss = running_val_loss / len(valid_dataloader)
         
-    #     print("Validation loss : {:3f}\n".format(validation_loss))
+        print("Validation loss : {:3f}\n".format(validation_loss))
         
-    #     if args.logging_shape_train:
-    #         # if epoch % args.freq_checkpoint == 0:
-    #         #     checkpoint_save(model, save_dir, epoch, validation_loss)
-    #         if args.wandb:
-    #             wandb.log({
-    #                 "train_loss": running_shape_loss / len(train_dataloader),
-    #                 "train_vis_loss": running_visibility_loss / len(train_dataloader),
-    #                 "train_lm_loss": running_landmark_loss / len(train_dataloader),
-    #                 "val_loss": validation_loss,
-    #                 "val_vis_loss": running_visibility_val_loss / len(valid_dataloader),
-    #                 "val_lm_loss": running_landmark_val_loss / len(valid_dataloader),
-    #             })
+        if args.logging_shape_train:
+            # if epoch % args.freq_checkpoint == 0:
+            #     checkpoint_save(model, save_dir, epoch, validation_loss)
+            if args.wandb:
+                wandb.log({
+                    "train_loss": running_shape_loss / len(train_dataloader),
+                    "train_vis_loss": running_visibility_loss / len(train_dataloader),
+                    "train_lm_loss": running_landmark_loss / len(train_dataloader),
+                    "val_loss": validation_loss,
+                    "val_vis_loss": running_visibility_val_loss / len(valid_dataloader),
+                    "val_lm_loss": running_landmark_val_loss / len(valid_dataloader),
+                })
         
     ###### first 3 epochs, train only shape biased stream
 
@@ -298,7 +287,8 @@ def train():
         running_train_category_acc3, running_train_category_acc5 = 0, 0
         running_train_attr_recall3, running_train_attr_recall5 = 0, 0
         
-        running_loss_weights = torch.zeros(4)
+        if loss_mode != 'base':
+            running_loss_weights = torch.zeros(4)
         
         now_lr = lr_scheduler.optimizer.param_groups[0]['lr']
         running_train_loss = 0
@@ -316,28 +306,39 @@ def train():
             
             category_out, attr_out, vis_out, loc_out = model(img_batch, shape=False)
             
-            ######################
-            # new
-            if epoch < cov_epoch:
-                criterion = criterions['cov']
-                loss, cat_loss, att_loss, vis_loss, lm_loss, loss_weights = criterion(
+            if loss_mode == 'cov':
+                loss, cat_loss, att_loss, vis_loss, lm_loss, loss_weights = criterion_dict['all'](
                     preds = (category_out, attr_out, vis_out, loc_out),
                     targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
                     mode='train'
                 )
-                
-                # sum loss-weight
                 running_loss_weights += loss_weights.detach().cpu()
                 
-            else :
-                creterion = criterions['base']
-                cat_loss, att_loss, vis_loss, lm_loss = creterion(
-                    preds = (category_out, attr_out, vis_out, loc_out),
-                    targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
-                )
-                
-                # loss = cat_loss + 500*att_loss + lm_loss + vis_loss
-                loss = cat_loss + att_weight*att_loss + lm_loss + vis_loss
+            elif loss_mode == 'multi':
+                if epoch < cov_epoch:
+                    loss, cat_loss, att_loss, vis_loss, lm_loss, loss_weights = criterion_dict['cov'](
+                        preds = (category_out, attr_out, vis_out, loc_out),
+                        targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
+                        mode='train'
+                    )
+                    # sum loss-weight
+                    running_loss_weights += loss_weights.detach().cpu()
+                    
+                else :
+                    cat_loss, att_loss, vis_loss, lm_loss = criterion_dict['base'](
+                        preds = (category_out, attr_out, vis_out, loc_out),
+                        targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
+                    )
+                    # att_weight=500
+                    loss = cat_loss + att_weight*att_loss + lm_loss + vis_loss
+                pass
+            
+            else : # loss_mode == 'base'
+                cat_loss, att_loss, vis_loss, lm_loss = criterion_dict['base'](
+                        preds = (category_out, attr_out, vis_out, loc_out),
+                        targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
+                    )
+                loss = cat_loss + 500*att_loss + lm_loss + vis_loss
             
             # loss calc
             running_train_loss += loss.detach().cpu().numpy().item()
@@ -388,7 +389,7 @@ def train():
         category_loss = running_category_loss / len(train_dataloader)
         attribute_loss = running_attribute_loss / len(train_dataloader)
         
-        if epoch < cov_epoch:
+        if (epoch < cov_epoch) and (loss_mode != 'base'):
             train_loss_weights = running_loss_weights / len(train_dataloader)
         
         train_cat_acc3 = running_train_category_acc3 / len(train_dataloader)
@@ -415,20 +416,34 @@ def train():
                 
                 category_out, attr_out, vis_out, loc_out = model(img_batch, shape=False)
                 
-                if epoch < cov_epoch:
-                    criterion = criterions['cov']
-                    val_loss, cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterion(
+                if loss_mode == 'cov':
+                    val_loss, cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterion_dict['all'](
                         preds = (category_out, attr_out, vis_out, loc_out),
                         targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
                         mode='valid'
                     )
-                else:
-                    criterion = criterions['base']
-                    cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterion(
-                        preds = (category_out, attr_out, vis_out, loc_out),
-                        targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
-                    )
-                
+                    
+                elif loss_mode == 'multi':
+                    if epoch < cov_epoch:
+                        val_loss, cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterion_dict['cov'](
+                            preds = (category_out, attr_out, vis_out, loc_out),
+                            targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
+                            mode='valid'
+                        )
+                    else:
+                        cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterion_dict['base'](
+                            preds = (category_out, attr_out, vis_out, loc_out),
+                            targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
+                        )
+                    
+                        val_loss = cat_val_loss + 500*att_val_loss + lm_val_loss + vis_val_loss
+                    
+                else :  # loss_mode == 'base'
+                    cat_val_loss, att_val_loss, vis_val_loss, lm_val_loss = criterion_dict['base'](
+                            preds = (category_out, attr_out, vis_out, loc_out),
+                            targets = (category_batch, attribute_batch, visibility_batch, landmark_batch),
+                        )
+                    
                     val_loss = cat_val_loss + 500*att_val_loss + lm_val_loss + vis_val_loss
                 
                 running_val_loss += val_loss.item()
@@ -502,7 +517,7 @@ def train():
                 "valid_visibility": validation_visibility_loss,
                 "valid_loss": validation_loss,
             }
-            if epoch < cov_epoch:
+            if (epoch < cov_epoch) and (loss_mode != 'base'):
                 wandb_status['cat_loss_weight'] = train_loss_weights[0]
                 wandb_status['att_loss_weight'] = train_loss_weights[1]
                 wandb_status['vis_loss_weight'] = train_loss_weights[2]
@@ -649,17 +664,19 @@ if __name__ == "__main__":
     parser.add_argument("--bit_model_name", type=str, default=None)
     parser.add_argument("--sweep", action='store_true')
     parser.add_argument("--sweep_count", type=int, default=3)
-    parser.add_argument("--cov", action='store_true')
     parser.add_argument("--scheduler", type=str, default=None)
     parser.add_argument("--patience", type=int, default=2)
     parser.add_argument("--decay_factor", type=float, default=0.1)
+    parser.add_argument("--cov_epoch", type=int, default=2)
+    parser.add_argument("--att_weight", type=float, default=500.0)
     
-    parser.add_argument("--multi_loss", action="store_true")
-    parser.add_argument("--cov_epoch", type=int, default=15)
-    parser.add_argument("--att_weight", type=float, default=3.0)
+    parser.add_argument("--loss_mode", type=str, default='base', help="base, multi, cov")
     
     args = parser.parse_args()
     args.milestones = list(map(int, args.milestones.split(',')))
+    
+    if args.loss_mode == 'multi' and args.shape_epochs != 0:
+        raise Exception("Invalid arguments, 'multi_loss' mode, shape_epochs != 0")
     
     if args.backbone == 'bit':
         if args.bit_model_name is None:
