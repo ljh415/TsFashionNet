@@ -38,15 +38,14 @@ sweep_configuration = {
         'project': 'tsfashionnet',
         'entity': 'ljh415',
         'metric': {
-            'goal': 'minimize',
-            'name': 'valid_loss'
+            'goal': 'maximaize',
+            'name': 'valid_attribute_recall3'
         },
         'parameters': {
-            'batch_size': {'values':[16]},
-            # 'epochs': {'min':12, 'max':15},
-            'lr': {'min':1e-5, 'max':5.5e-3},
-            'shape_epochs': {'min': 3, 'max': 5},
-            'shape_lr': {'min':5e-5, 'max':1.2e-3},
+            'cov_epoch': {'values':[1,2,3]},
+            'epochs': {'min':12, 'max':20},
+            'lr': {'min':3e-3, 'max':1e-2},
+            'att_weight': {"min":400, "max":600}
         }
     }
 }
