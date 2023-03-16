@@ -491,7 +491,8 @@ def train():
             )
         )
         
-        lr_scheduler.step(epoch+1)
+        if epoch >= config.cov_epoch :
+            lr_scheduler.step(epoch+1)
         
         if epoch % config['freq_checkpoint'] == 0 :
             checkpoint_save(model, save_dir, epoch, validation_loss)
