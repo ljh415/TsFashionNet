@@ -47,6 +47,7 @@ def train():
             
     if config['wandb']:
         if config['sweep']:
+            config['scheduler'] = 'plat'
             wandb.init(entity='ljh415', project=config['project'], dir='/media/jaeho/HDD/wandb/',
                        config=config)
             w_config = wandb.config
@@ -491,7 +492,7 @@ def train():
             )
         )
         
-        if epoch >= config.cov_epoch :
+        if epoch >= config['cov_epoch'] and config['scheduler'] == 'plat':
             lr_scheduler.step(epoch+1)
         
         if epoch % config['freq_checkpoint'] == 0 :
