@@ -225,8 +225,8 @@ shape_lr\t: {config['shape_lr']}
 init_lr\t\t: {config['lr']}
 batch_size\t: {config['batch_size']}
 num_of_param\t: {count_parameters(model, trainable):,}
-apply_CoV\t: {config['cov']}
-scheduler\t: {"default" if config['scheduler'] is None else "plateau:{config['patience']}"}
+scheduler\t: {"default" if config['scheduler'] is None else f"plateau/{config['patience']}/{config['decay_factor']}"}
+loss_mode\t: {config['loss_mode']}
 {'=='*20}
           """)
 
