@@ -578,9 +578,7 @@ def test():
         att = att.to(device)
         img_tensor = img.to(device)
         
-        _, _, cat_out, att_out = model(img_tensor, shape=False)
-        cat_out = torch.unsqueeze(cat_out, axis=0)
-        att_out = torch.unsqueeze(att_out, axis=0)
+        cat_out, att_out, _, _ = model(img_tensor, shape=False)
         
         # calc metric
         calc_dict = calc_metric(metric_dict, cat_out, att_out, cat, att)
