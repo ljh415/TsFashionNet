@@ -13,6 +13,72 @@ PreTrained_Dict = {
     '3': 'resnetv2_101x3_bitm_in21k',
 }
 
+class AFF(nn.Module):
+    # feature fusion
+    def __init__(self, channels=4096, r=4):
+        super(AFF, self).__init__()
+        inter_channels = int(channels // r)
+        
+        self.local_att = nn.Sequential(
+            nn.Conv2d(channels, inter_channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(inter_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(inter_channels, channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(channels)
+        )
+        
+        self.global_att = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(channels, inter_channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(inter_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(inter_channels, channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(channels)
+        )
+        
+        self.sigmoid = nn.Sigmoid()
+        
+        # exp4
+        self.conv11 = nn.Sequential(
+            nn.Conv2d(4096, 2048, kernel_size=1, stride=1, padding=0),
+            nn.Sigmoid()
+        )
+        
+        
+    def forward(self, texture, shape):
+        # 원래는 x와 residual을 입력받고
+        # 이 두개를 더해서 SE-Net처럼 기본의 feature를 relcalibration하는 것 같은데..
+        # output shaoe of bit backbone = (batch_size, 2048, 7, 7)
+        
+        # exp1, not add texture, shape
+        # xl = self.local_att(texture)
+        # xg = self.global_att(shape)
+        # xlg = xl+xg
+        # wei = self.sigmoid(xlg)
+        # xo = 2 * texture * wei + 2 * shape * (1 - wei)
+        
+        # exp2, add like residual
+        # xi = texture + shape
+        # xl = self.local_att(xi)
+        # xg = self.global_att(xi)
+        # xlg = xl + xg
+        # wei = self.sigmoid(xlg)
+        # xo = 2 * texture * wei + 2 * shape * (1-wei)
+        
+        #exp3, concat input
+        xi = torch.cat((texture, shape), dim=1)
+        xl = self.local_att(xi)    # channel argument를 2배로 해줘야 할 것
+        xg = self.global_att(xi)   # 2048 -> 4096
+        xlg = xl + xg
+        wei = self.sigmoid(xlg)
+        # wei는 4096채널이고, texture와 shape는 2048, 2048이기 때문에
+        # 아래에서 에러
+        # 여기에 
+        xo = 2 * texture * wei + 2 * shape * (1-wei)
+
+        return xo
+        
+
 class GateNet(nn.Module):
     def __init__(self, channel_factor):
         super(GateNet, self).__init__()
@@ -34,7 +100,12 @@ class BiT_TSFashionNet(nn.Module):
         self.texture_model = timm.create_model(model_name, pretrained=True)
         self.shape_model = timm.create_model(model_name, pretrained=False)
         self.channel_factor = 3 if 'x3' in model_name else 1
+        
+        # prev gate
         self.gate = GateNet(self.channel_factor)
+        # AFF
+        self.aff = AFF()
+        
         
         ### norm
         self.shape_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
@@ -133,7 +204,14 @@ class BiT_TSFashionNet(nn.Module):
         texture_out = self.texture_norm(texture_out)
 
         cat_shape = shape_feature.clone().detach()
-        texture_out = self.gate(texture_out, cat_shape)
+        
+        # prev gate
+        # texture_out = self.gate(texture_out, cat_shape)
+        # AFF
+        texture_out = self.aff(texture_out, cat_shape)
+        sys.exit(1)
+        
+        
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
         
