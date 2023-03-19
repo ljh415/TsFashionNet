@@ -548,7 +548,7 @@ def test():
         transforms.ToTensor()
     ])
     test_dataset = TSDataset(
-        data_path='/media/jaeho/SSD/datasets/deepfashion/split/test.pickle',
+        data_path=os.path.join(config['data_path'], 'test.pickle'),
         img_dir = config['img_dir'],
         transform=trans
     )
