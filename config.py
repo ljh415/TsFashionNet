@@ -38,7 +38,7 @@ sweep_configuration = {
         'project': 'tsfashionnet',
         'entity': 'ljh415',
         'metric': {
-            'goal': 'maximaize',
+            'goal': 'maximize',
             'name': 'valid_attribute_recall3'
         },
         'parameters': {
