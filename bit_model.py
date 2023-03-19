@@ -19,7 +19,7 @@ class GateNet(nn.Module):
         self.gate = nn.Sequential(
             nn.Conv2d(4096*channel_factor, 1024, kernel_size=1),
             nn.BatchNorm2d(1024),
-            nn.ReLU()
+            nn.ReLU(inplace=True)
         )
     
     def forward(self, a, b):
