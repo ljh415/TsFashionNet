@@ -15,7 +15,7 @@ PreTrained_Dict = {
 
 class AFF(nn.Module):
     # feature fusion
-    def __init__(self, channels=2048, r=4):
+    def __init__(self, channels=4096, r=4):
         super(AFF, self).__init__()
         inter_channels = int(channels // r)
         
@@ -36,20 +36,25 @@ class AFF(nn.Module):
             nn.BatchNorm2d(channels),
         )
         
-        self.sigmoid = nn.Sigmoid()
+        # self.sigmoid = nn.Sigmoid()
         
         # exp1, 2
+        # self.conv11 = nn.Sequential(
+        #     nn.Conv2d(channels, 1024, kernel_size=1, stride=1, padding=0),
+        #     nn.BatchNorm2d(1024),
+        #     nn.ReLU(inplace=True)
+        # )
+        
+        # exp3
+        self.weight_sigmoid = nn.Sequential(
+            nn.Conv2d(4096, 2048, kernel_size=1, stride=1, padding=0),
+            nn.Sigmoid()
+        )
         self.conv11 = nn.Sequential(
-            nn.Conv2d(channels, 1024, kernel_size=1, stride=1, padding=0),
+            nn.Conv2d(2048, 1024, kernel_size=1, stride=1, padding=0),
             nn.BatchNorm2d(1024),
             nn.ReLU(inplace=True)
         )
-        
-        # exp3
-        # self.conv11 = nn.Sequential(
-        #     nn.Conv2d(4096, 2048, kernel_size=1, stride=1, padding=0),
-        #     nn.Sigmoid()
-        # )
         
         
     def forward(self, texture, shape):
@@ -60,12 +65,12 @@ class AFF(nn.Module):
         # self.texutre 다음으로 
         
         # exp1, not add texture, shape
-        xl = self.local_att(texture)
-        xg = self.global_att(shape)
-        xlg = xl+xg
-        wei = self.sigmoid(xlg)
-        xo = (2 * texture * wei) + (2 * shape * (1 - wei))
-        xo = self.conv11(xo)
+        # xl = self.local_att(texture)
+        # xg = self.global_att(shape)
+        # xlg = xl+xg
+        # wei = self.sigmoid(xlg)
+        # xo = (2 * texture * wei) + (2 * shape * (1 - wei))
+        # xo = self.conv11(xo)
         
         # exp2, add like residual
         # xi = texture + shape
@@ -78,27 +83,17 @@ class AFF(nn.Module):
         # xo = self.conv11(xo)
         
         #exp3, concat input
-        # xi = torch.cat((texture, shape), dim=1)
-        # xl = self.local_att(xi)    # channel argument를 2배로 해줘야 할 것
-        # xg = self.global_att(xi)   # 2048 -> 4096
-        # xlg = xl + xg
-        # wei = self.sigmoid(xlg)
-        # # wei는 4096채널이고, texture와 shape는 2048, 2048이기 때문에
-        # # 아래에서 에러
-        # # 여기에 
-        # xo = 2 * texture * wei + 2 * shape * (1-wei)
-        
-        #exp3, concat input
-        # xi = torch.cat((texture, shape), dim=1)
-        # xl = self.local_att(xi)    # channel argument를 2배로 해줘야 할 것
-        # xg = self.global_att(xi)   # 2048 -> 4096
-        # xlg = xl + xg
-        # wei = self.sigmoid(xlg)
-        # # wei는 4096채널이고, texture와 shape는 2048, 2048이기 때문에
-        # # 아래에서 에러
-        # # 여기에 
-        # xo = 2 * texture * wei + 2 * shape * (1-wei)
+        xi = torch.cat((texture, shape), dim=1)
+        xl = self.local_att(xi)    # channel argument를 2배로 해줘야 할 것
+        xg = self.global_att(xi)   # 2048 -> 4096
+        xlg = xl + xg
+        wei = self.weight_sigmoid(xlg)
 
+        # wei는 4096채널이고, texture와 shape는 2048, 2048이기 때문에
+        # 아래에서 에러
+        # 여기에 
+        xo = 2 * texture * wei + 2 * shape * (1-wei)
+        xo = self.conv11(xo)
         return xo
         
 
