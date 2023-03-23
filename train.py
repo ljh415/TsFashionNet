@@ -492,7 +492,7 @@ def train():
             )
         )
         
-        if epoch >= config['cov_epoch'] and config['scheduler'] == 'plat':
+        if epoch >= config['cov_epoch']:
             lr_scheduler.step(epoch+1)
         
         if epoch % config['freq_checkpoint'] == 0 :

@@ -24,7 +24,7 @@ class AFF(nn.Module):
             nn.BatchNorm2d(inter_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(inter_channels, channels, kernel_size=1, stride=1, padding=0),
-            nn.BatchNorm2d(channels)
+            nn.BatchNorm2d(channels),
         )
         
         self.global_att = nn.Sequential(
@@ -33,22 +33,31 @@ class AFF(nn.Module):
             nn.BatchNorm2d(inter_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(inter_channels, channels, kernel_size=1, stride=1, padding=0),
-            nn.BatchNorm2d(channels)
+            nn.BatchNorm2d(channels),
         )
         
         self.sigmoid = nn.Sigmoid()
         
-        # exp4
+        # exp1, 2
         self.conv11 = nn.Sequential(
-            nn.Conv2d(4096, 2048, kernel_size=1, stride=1, padding=0),
-            nn.Sigmoid()
+            nn.Conv2d(channels, 1024, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(1024),
+            nn.ReLU(inplace=True)
         )
+        
+        # exp3
+        # self.conv11 = nn.Sequential(
+        #     nn.Conv2d(4096, 2048, kernel_size=1, stride=1, padding=0),
+        #     nn.Sigmoid()
+        # )
         
         
     def forward(self, texture, shape):
         # 원래는 x와 residual을 입력받고
         # 이 두개를 더해서 SE-Net처럼 기본의 feature를 relcalibration하는 것 같은데..
         # output shaoe of bit backbone = (batch_size, 2048, 7, 7)
+        # 일단 self.conv11로 생성해서 실험 테스트 해보고... 성능 어느정도 나오는지 본 다음에 변경
+        # self.texutre 다음으로 
         
         # exp1, not add texture, shape
         xl = self.local_att(texture)
@@ -58,12 +67,14 @@ class AFF(nn.Module):
         xo = torch.cat([2 * texture * wei, 2 * shape * (1 - wei)], dim=1)
         
         # exp2, add like residual
-        # xi = texture + shape
-        # xl = self.local_att(xi)
-        # xg = self.global_att(xi)
-        # xlg = xl + xg
-        # wei = self.sigmoid(xlg)
-        # xo = 2 * texture * wei + 2 * shape * (1-wei)
+        xi = texture + shape
+        xl = self.local_att(xi)
+        xg = self.global_att(xi)
+        xlg = xl + xg
+        wei = self.sigmoid(xlg)
+        xo = 2 * texture * wei + 2 * shape * (1-wei)
+        
+        xo = self.conv11(xo)
         
         #exp3, concat input
         # xi = torch.cat((texture, shape), dim=1)
@@ -75,6 +86,17 @@ class AFF(nn.Module):
         # # 아래에서 에러
         # # 여기에 
         # xo = 2 * texture * wei + 2 * shape * (1-wei)
+        
+        #exp3, concat input
+        xi = torch.cat((texture, shape), dim=1)
+        xl = self.local_att(xi)    # channel argument를 2배로 해줘야 할 것
+        xg = self.global_att(xi)   # 2048 -> 4096
+        xlg = xl + xg
+        wei = self.sigmoid(xlg)
+        # wei는 4096채널이고, texture와 shape는 2048, 2048이기 때문에
+        # 아래에서 에러
+        # 여기에 
+        xo = 2 * texture * wei + 2 * shape * (1-wei)
 
         return xo
         
@@ -207,10 +229,11 @@ class BiT_TSFashionNet(nn.Module):
         
         # prev gate
         # texture_out = self.gate(texture_out, cat_shape)
+        # shape torch.Size([16, 1024, 7, 7])
         # AFF
         texture_out = self.aff(texture_out, cat_shape)
-        # print(texture_out.shape)
-        # sys.exit(1)
+        sys.exit(1)
+        
         
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
