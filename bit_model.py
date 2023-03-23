@@ -64,7 +64,8 @@ class AFF(nn.Module):
         xg = self.global_att(shape)
         xlg = xl+xg
         wei = self.sigmoid(xlg)
-        xo = torch.cat([2 * texture * wei, 2 * shape * (1 - wei)], dim=1)
+        xo = (2 * texture * wei) + (2 * shape * (1 - wei))
+        xo = self.conv11(xo)
         
         # exp2, add like residual
         # xi = texture + shape
