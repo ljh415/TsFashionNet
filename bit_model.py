@@ -15,7 +15,7 @@ PreTrained_Dict = {
 
 class AFF(nn.Module):
     # feature fusion
-    def __init__(self, channels=4096, r=4):
+    def __init__(self, channels=2048, r=4):
         super(AFF, self).__init__()
         inter_channels = int(channels // r)
         
@@ -51,11 +51,11 @@ class AFF(nn.Module):
         # output shaoe of bit backbone = (batch_size, 2048, 7, 7)
         
         # exp1, not add texture, shape
-        # xl = self.local_att(texture)
-        # xg = self.global_att(shape)
-        # xlg = xl+xg
-        # wei = self.sigmoid(xlg)
-        # xo = 2 * texture * wei + 2 * shape * (1 - wei)
+        xl = self.local_att(texture)
+        xg = self.global_att(shape)
+        xlg = xl+xg
+        wei = self.sigmoid(xlg)
+        xo = torch.cat([2 * texture * wei, 2 * shape * (1 - wei)], dim=1)
         
         # exp2, add like residual
         # xi = texture + shape
@@ -66,15 +66,15 @@ class AFF(nn.Module):
         # xo = 2 * texture * wei + 2 * shape * (1-wei)
         
         #exp3, concat input
-        xi = torch.cat((texture, shape), dim=1)
-        xl = self.local_att(xi)    # channel argument를 2배로 해줘야 할 것
-        xg = self.global_att(xi)   # 2048 -> 4096
-        xlg = xl + xg
-        wei = self.sigmoid(xlg)
-        # wei는 4096채널이고, texture와 shape는 2048, 2048이기 때문에
-        # 아래에서 에러
-        # 여기에 
-        xo = 2 * texture * wei + 2 * shape * (1-wei)
+        # xi = torch.cat((texture, shape), dim=1)
+        # xl = self.local_att(xi)    # channel argument를 2배로 해줘야 할 것
+        # xg = self.global_att(xi)   # 2048 -> 4096
+        # xlg = xl + xg
+        # wei = self.sigmoid(xlg)
+        # # wei는 4096채널이고, texture와 shape는 2048, 2048이기 때문에
+        # # 아래에서 에러
+        # # 여기에 
+        # xo = 2 * texture * wei + 2 * shape * (1-wei)
 
         return xo
         
@@ -209,8 +209,8 @@ class BiT_TSFashionNet(nn.Module):
         # texture_out = self.gate(texture_out, cat_shape)
         # AFF
         texture_out = self.aff(texture_out, cat_shape)
-        sys.exit(1)
-        
+        # print(texture_out.shape)
+        # sys.exit(1)
         
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
