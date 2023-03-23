@@ -67,14 +67,14 @@ class AFF(nn.Module):
         xo = torch.cat([2 * texture * wei, 2 * shape * (1 - wei)], dim=1)
         
         # exp2, add like residual
-        xi = texture + shape
-        xl = self.local_att(xi)
-        xg = self.global_att(xi)
-        xlg = xl + xg
-        wei = self.sigmoid(xlg)
-        xo = 2 * texture * wei + 2 * shape * (1-wei)
+        # xi = texture + shape
+        # xl = self.local_att(xi)
+        # xg = self.global_att(xi)
+        # xlg = xl + xg
+        # wei = self.sigmoid(xlg)
+        # xo = 2 * texture * wei + 2 * shape * (1-wei)
         
-        xo = self.conv11(xo)
+        # xo = self.conv11(xo)
         
         #exp3, concat input
         # xi = torch.cat((texture, shape), dim=1)
@@ -88,15 +88,15 @@ class AFF(nn.Module):
         # xo = 2 * texture * wei + 2 * shape * (1-wei)
         
         #exp3, concat input
-        xi = torch.cat((texture, shape), dim=1)
-        xl = self.local_att(xi)    # channel argument를 2배로 해줘야 할 것
-        xg = self.global_att(xi)   # 2048 -> 4096
-        xlg = xl + xg
-        wei = self.sigmoid(xlg)
-        # wei는 4096채널이고, texture와 shape는 2048, 2048이기 때문에
-        # 아래에서 에러
-        # 여기에 
-        xo = 2 * texture * wei + 2 * shape * (1-wei)
+        # xi = torch.cat((texture, shape), dim=1)
+        # xl = self.local_att(xi)    # channel argument를 2배로 해줘야 할 것
+        # xg = self.global_att(xi)   # 2048 -> 4096
+        # xlg = xl + xg
+        # wei = self.sigmoid(xlg)
+        # # wei는 4096채널이고, texture와 shape는 2048, 2048이기 때문에
+        # # 아래에서 에러
+        # # 여기에 
+        # xo = 2 * texture * wei + 2 * shape * (1-wei)
 
         return xo
         
@@ -232,8 +232,6 @@ class BiT_TSFashionNet(nn.Module):
         # shape torch.Size([16, 1024, 7, 7])
         # AFF
         texture_out = self.aff(texture_out, cat_shape)
-        sys.exit(1)
-        
         
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
