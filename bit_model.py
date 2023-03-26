@@ -111,13 +111,13 @@ class BiT_TSFashionNet(nn.Module):
         
         self.location = nn.Sequential(
             nn.GroupNorm(32, 1024),
-            StdConvTransposed2d(1024, 512, 3, 2),
-            # nn.ConvTranspose2d(1024, 512, kernel_size=3, stride=2),
+            # StdConvTransposed2d(1024, 512, 3, 2),
+            nn.ConvTranspose2d(1024, 512, kernel_size=3, stride=2),
             # nn.BatchNorm2d(1024),
             nn.ReLU(inplace=True),
             nn.GroupNorm(32, 512),
-            StdConvTransposed2d(512, 8, 3, 2),
-            # nn.ConvTranspose2d(512, 8, kernel_size=3, stride=2),
+            # StdConvTransposed2d(512, 8, 3, 2),
+            nn.ConvTranspose2d(512, 8, kernel_size=3, stride=2),
             # nn.BatchNorm2d(8),
             nn.ReLU(inplace=True)
         )
