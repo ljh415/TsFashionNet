@@ -26,6 +26,13 @@ class StdConv2d(nn.Conv2d):
         w = (w - m) / torch.sqrt(v + 1e-10)
         return F.conv2d(x, w, self.bias, self.stride, self.padding, self.dilation, self.groups)
 
+class StdConvTransposed2d(nn.ConvTranspose2d):
+    def forward(self, x):
+        w = self.weight
+        v, m = torch.var_mean(w, dim=[1, 2, 3], keepdim=True, unbiased=False)
+        w = (w - m) / torch.sqrt(v + 1e-10)
+        return F.conv_transpose2d(x, w, self.bias, self.stride, self.padding, self.output_padding, self.groups, self.dilation) 
+
 class GateNet(nn.Module):
     def __init__(self, channel_factor):
         super(GateNet, self).__init__()
@@ -67,12 +74,12 @@ class BiT_TSFashionNet(nn.Module):
             StdConv2d(in_channels=4096, out_channels=2048, kernel_size=3, padding=0),
             # nn.Conv2d(4096, 2048, 3, padding=0),
             # nn.BatchNorm2d(2048),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.GroupNorm(32, 2048),
             StdConv2d(in_channels=2048, out_channels=4096, kernel_size=1),
             # nn.Conv2d(2048, 4096, 1),
             # nn.BatchNorm2d(4096),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.AdaptiveAvgPool2d((1, 1))
         )
         self.clothes_cls_fc = nn.Linear(4096, 46)
@@ -87,30 +94,32 @@ class BiT_TSFashionNet(nn.Module):
             StdConv2d(in_channels=2048*self.channel_factor, out_channels=1024, kernel_size=1),
             # nn.Conv2d(2048*self.channel_factor, 1024, 1),
             # nn.BatchNorm2d(1024),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.GroupNorm(32, 1024),
             StdConv2d(in_channels=1024, out_channels=512, kernel_size=3, padding=1),
             # nn.Conv2d(1024, 512, 3, padding=1),
             # nn.BatchNorm2d(512),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.GroupNorm(32, 512),
             StdConv2d(in_channels=512, out_channels=1024, kernel_size=1),
             # nn.Conv2d(512, 1024, 1),
             # nn.BatchNorm2d(1024),
-            nn.ReLU()
+            nn.ReLU(inplace=True)
         )
         
         self.vis_fc = nn.Linear(50176, 8)
         
         self.location = nn.Sequential(
             nn.GroupNorm(32, 1024),
-            nn.ConvTranspose2d(1024, 512, kernel_size=3, stride=2),
+            StdConvTransposed2d(1024, 512, 3, 2),
+            # nn.ConvTranspose2d(1024, 512, kernel_size=3, stride=2),
             # nn.BatchNorm2d(1024),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.GroupNorm(32, 512),
-            nn.ConvTranspose2d(512, 8, kernel_size=3, stride=2),
+            StdConvTransposed2d(512, 8, 3, 2),
+            # nn.ConvTranspose2d(512, 8, kernel_size=3, stride=2),
             # nn.BatchNorm2d(8),
-            nn.ReLU()
+            nn.ReLU(inplace=True)
         )
         ## output = 32
         # location에 대해서 만들때 마지막 conv를 쓰는 이유는 뭐지?
