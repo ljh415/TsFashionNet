@@ -1,10 +1,16 @@
 import timm
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import timm.models.layers as tml
 
 from itertools import islice
 from collections import OrderedDict
+
+# BN => GN
+# texture_stream 및 shape_stream, location을 Bit에 맞춰서 조금씩 변경
+# BiT논문에서는 WS를 적용한 conv를 따로 클래스로 만들어서 사용
+# 추가적으로 GroupNorm은 conv앞부분에서 적용하고, Group의 개수는 32로 통일
 
 PreTrained_Dict = {
     '0': 'resnetv2_50x1_bitm_in21k',
@@ -12,6 +18,13 @@ PreTrained_Dict = {
     '2': 'resnetv2_101x1_bitm_in21k',
     '3': 'resnetv2_101x3_bitm_in21k',
 }
+
+class StdConv2d(nn.Conv2d):
+    def forward(self, x):
+        w = self.weight
+        v, m = torch.var_mean(w, dim=[1, 2, 3], keepdim=True, unbiased=False)
+        w = (w - m) / torch.sqrt(v + 1e-10)
+        return F.conv2d(x, w, self.bias, self.stride, self.padding, self.dilation, self.groups)
 
 class GateNet(nn.Module):
     def __init__(self, channel_factor):
@@ -50,13 +63,16 @@ class BiT_TSFashionNet(nn.Module):
                 layer_.reauire_grad = False
         
         self.texture_stream = nn.Sequential(
-            nn.Conv2d(1024, 2048, 3, padding=0),
-            nn.BatchNorm2d(2048),
+            nn.GroupNorm(32, 4096),
+            StdConv2d(in_channels=4096, out_channels=2048, kernel_size=3, padding=0),
+            # nn.Conv2d(4096, 2048, 3, padding=0),
+            # nn.BatchNorm2d(2048),
             nn.ReLU(),
-            nn.Conv2d(2048, 4096, 3, padding=1),
-            nn.BatchNorm2d(4096),
+            nn.GroupNorm(32, 2048),
+            StdConv2d(in_channels=2048, out_channels=4096, kernel_size=1),
+            # nn.Conv2d(2048, 4096, 1),
+            # nn.BatchNorm2d(4096),
             nn.ReLU(),
-            nn.Dropout(0.5),
             nn.AdaptiveAvgPool2d((1, 1))
         )
         self.clothes_cls_fc = nn.Linear(4096, 46)
@@ -67,30 +83,39 @@ class BiT_TSFashionNet(nn.Module):
         # 다초기화
         # self.shape_backbone.apply(self._init_weight)
         self.shape_stream = nn.Sequential(
-            nn.Conv2d(2048*self.channel_factor, 1024, 1),
-            nn.BatchNorm2d(1024),
+            nn.GroupNorm(32, 2048*self.channel_factor),
+            StdConv2d(in_channels=2048*self.channel_factor, out_channels=1024, kernel_size=1),
+            # nn.Conv2d(2048*self.channel_factor, 1024, 1),
+            # nn.BatchNorm2d(1024),
             nn.ReLU(),
-            nn.Conv2d(1024, 512, 3, padding=1),
-            nn.BatchNorm2d(512),
+            nn.GroupNorm(32, 1024),
+            StdConv2d(in_channels=1024, out_channels=512, kernel_size=3, padding=1),
+            # nn.Conv2d(1024, 512, 3, padding=1),
+            # nn.BatchNorm2d(512),
             nn.ReLU(),
-            nn.Conv2d(512, 1024, 1),
-            nn.BatchNorm2d(1024),
+            nn.GroupNorm(32, 512),
+            StdConv2d(in_channels=512, out_channels=1024, kernel_size=1),
+            # nn.Conv2d(512, 1024, 1),
+            # nn.BatchNorm2d(1024),
             nn.ReLU()
         )
         
         self.vis_fc = nn.Linear(50176, 8)
         
         self.location = nn.Sequential(
-            nn.ConvTranspose2d(1024, 1024, kernel_size=3, stride=2),
-            nn.BatchNorm2d(1024),
+            nn.GroupNorm(32, 1024),
+            nn.ConvTranspose2d(1024, 512, kernel_size=3, stride=2),
+            # nn.BatchNorm2d(1024),
             nn.ReLU(),
-            nn.ConvTranspose2d(1024, 1024, kernel_size=3, stride=2),
-            nn.BatchNorm2d(1024),
-            nn.ReLU(),
-            nn.Conv2d(1024, 8, 4, 1),
-            nn.BatchNorm2d(8),
-            nn.ReLU(),
+            nn.GroupNorm(32, 512),
+            nn.ConvTranspose2d(512, 8, kernel_size=3, stride=2),
+            # nn.BatchNorm2d(8),
+            nn.ReLU()
         )
+        ## output = 32
+        # location에 대해서 만들때 마지막 conv를 쓰는 이유는 뭐지?
+        # 이 구조에 대해서 왜 이렇게 짯는지는 언급된 점이 없으니까 그냥 대충 적어도 될 것 같은데
+        
         
         ## 이건 안쓸듯..? 나중에
         # if self.bit_classifier:
@@ -133,7 +158,9 @@ class BiT_TSFashionNet(nn.Module):
         texture_out = self.texture_norm(texture_out)
 
         cat_shape = shape_feature.clone().detach()
-        texture_out = self.gate(texture_out, cat_shape)
+        # texture_out = self.gate(texture_out, cat_shape)
+        texture_out = torch.cat([texture_out, cat_shape], dim=1)
+        
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
         
