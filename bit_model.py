@@ -71,13 +71,13 @@ class BiT_TSFashionNet(nn.Module):
         
         self.texture_stream = nn.Sequential(
             nn.GroupNorm(32, 4096),
-            StdConv2d(in_channels=4096, out_channels=2048, kernel_size=3, padding=0),
-            # nn.Conv2d(4096, 2048, 3, padding=0),
+            # StdConv2d(in_channels=4096, out_channels=2048, kernel_size=3, padding=0),
+            nn.Conv2d(4096, 2048, 3, padding=0),
             # nn.BatchNorm2d(2048),
             nn.ReLU(inplace=True),
             nn.GroupNorm(32, 2048),
-            StdConv2d(in_channels=2048, out_channels=4096, kernel_size=1),
-            # nn.Conv2d(2048, 4096, 1),
+            # StdConv2d(in_channels=2048, out_channels=4096, kernel_size=1),
+            nn.Conv2d(2048, 4096, 1),
             # nn.BatchNorm2d(4096),
             nn.ReLU(inplace=True),
             nn.AdaptiveAvgPool2d((1, 1))
@@ -91,18 +91,18 @@ class BiT_TSFashionNet(nn.Module):
         # self.shape_backbone.apply(self._init_weight)
         self.shape_stream = nn.Sequential(
             nn.GroupNorm(32, 2048*self.channel_factor),
-            StdConv2d(in_channels=2048*self.channel_factor, out_channels=1024, kernel_size=1),
-            # nn.Conv2d(2048*self.channel_factor, 1024, 1),
+            # StdConv2d(in_channels=2048*self.channel_factor, out_channels=1024, kernel_size=1),
+            nn.Conv2d(2048*self.channel_factor, 1024, 1),
             # nn.BatchNorm2d(1024),
             nn.ReLU(inplace=True),
             nn.GroupNorm(32, 1024),
-            StdConv2d(in_channels=1024, out_channels=512, kernel_size=3, padding=1),
-            # nn.Conv2d(1024, 512, 3, padding=1),
+            # StdConv2d(in_channels=1024, out_channels=512, kernel_size=3, padding=1),
+            nn.Conv2d(1024, 512, 3, padding=1),
             # nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
             nn.GroupNorm(32, 512),
-            StdConv2d(in_channels=512, out_channels=1024, kernel_size=1),
-            # nn.Conv2d(512, 1024, 1),
+            # StdConv2d(in_channels=512, out_channels=1024, kernel_size=1),
+            nn.Conv2d(512, 1024, 1),
             # nn.BatchNorm2d(1024),
             nn.ReLU(inplace=True)
         )
