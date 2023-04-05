@@ -90,20 +90,20 @@ class BiT_TSFashionNet(nn.Module):
         # 다초기화
         # self.shape_backbone.apply(self._init_weight)
         self.shape_stream = nn.Sequential(
-            nn.GroupNorm(32, 2048*self.channel_factor),
+            # nn.GroupNorm(32, 2048*self.channel_factor),
             # StdConv2d(in_channels=2048*self.channel_factor, out_channels=1024, kernel_size=1),
             nn.Conv2d(2048*self.channel_factor, 1024, 1),
-            # nn.BatchNorm2d(1024),
+            nn.BatchNorm2d(1024),
             nn.ReLU(inplace=True),
-            nn.GroupNorm(32, 1024),
+            # nn.GroupNorm(32, 1024),
             # StdConv2d(in_channels=1024, out_channels=512, kernel_size=3, padding=1),
             nn.Conv2d(1024, 512, 3, padding=1),
-            # nn.BatchNorm2d(512),
+            nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
-            nn.GroupNorm(32, 512),
+            # nn.GroupNorm(32, 512),
             # StdConv2d(in_channels=512, out_channels=1024, kernel_size=1),
             nn.Conv2d(512, 1024, 1),
-            # nn.BatchNorm2d(1024),
+            nn.BatchNorm2d(1024),
             nn.ReLU(inplace=True)
         )
         
