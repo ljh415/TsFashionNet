@@ -520,6 +520,11 @@ def train():
                 "valid_visibility": validation_visibility_loss,
                 "valid_loss": validation_loss,
             }
+            if loss_mode == "cov":
+                wandb_status['cat_loss_weight'] = train_loss_weights[0]
+                wandb_status['att_loss_weight'] = train_loss_weights[1]
+                wandb_status['vis_loss_weight'] = train_loss_weights[2]
+                wandb_status['lm_loss_weight'] = train_loss_weights[3]
             if (epoch < cov_epoch) and (loss_mode != 'base'):
                 wandb_status['cat_loss_weight'] = train_loss_weights[0]
                 wandb_status['att_loss_weight'] = train_loss_weights[1]
