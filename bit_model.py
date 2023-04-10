@@ -121,8 +121,12 @@ class BiT_TSFashionNet(nn.Module):
             nn.ConvTranspose2d(512, 1024, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(1024),
             nn.ReLU(inplace=True),
-            # 
-            nn.Conv2d(1024, 8, 1),
+            #
+            nn.ConvTranspose2d(1024, 2048, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(2048),
+            nn.ReLU(inplace=True), 
+            #
+            nn.Conv2d(2048, 8, 1),
             nn.BatchNorm2d(8),
             nn.ReLU(inplace=True)
         )
