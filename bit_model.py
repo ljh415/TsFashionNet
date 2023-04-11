@@ -70,38 +70,38 @@ class BiT_TSFashionNet(nn.Module):
                 layer_.reauire_grad = False
         
         # adv_bit, best
-        # self.texture_stream = nn.Sequential(
-        #     nn.GroupNorm(32, 4096),
-        #     # StdConv2d(in_channels=4096, out_channels=2048, kernel_size=3, padding=0),
-        #     nn.Conv2d(4096, 2048, 3, padding=0),
-        #     # nn.BatchNorm2d(2048),
-        #     nn.ReLU(inplace=True),
-        #     nn.GroupNorm(32, 2048),
-        #     # StdConv2d(in_channels=2048, out_channels=4096, kernel_size=1),
-        #     nn.Conv2d(2048, 4096, 1),
-        #     # nn.BatchNorm2d(4096),
-        #     nn.ReLU(inplace=True),
+        self.texture_stream = nn.Sequential(
+            # nn.GroupNorm(32, 4096),
+            # StdConv2d(in_channels=4096, out_channels=2048, kernel_size=3, padding=0),
+            nn.Conv2d(4096, 2048, 3, padding=0),
+            nn.BatchNorm2d(2048),
+            nn.ReLU(inplace=True),
+            # nn.GroupNorm(32, 2048),
+            # StdConv2d(in_channels=2048, out_channels=4096, kernel_size=1),
+            nn.Conv2d(2048, 4096, 1),
+            nn.BatchNorm2d(4096),
+            nn.ReLU(inplace=True),
             
-        #     nn.Conv2d(4096, 2048, 1),
-        #     nn.Dropout(0.5),
-        #     nn.AdaptiveAvgPool2d((1, 1))
-        # )
+            nn.Conv2d(4096, 2048, 1),
+            nn.Dropout(0.5),
+            nn.AdaptiveAvgPool2d((1, 1))
+        )
         
         # new Bottle neck stream
-        self.texture_stream = nn.Sequential(
-            nn.GroupNorm(32, 4096),
-            nn.Conv2d(4096, 2048, 1),
-            nn.ReLU(inplace=True),
-            nn.GroupNorm(32, 2048),
-            nn.Conv2d(2048, 2048, 3, padding=0),
-            nn.ReLU(inplace=True),
-            nn.GroupNorm(32 , 2048),
-            nn.Conv2d(2048, 4096, 1),
-            nn.ReLU(inplace=True),
+        # self.texture_stream = nn.Sequential(
+        #     nn.GroupNorm(32, 4096),
+        #     nn.Conv2d(4096, 2048, 1),
+        #     nn.ReLU(inplace=True),
+        #     nn.GroupNorm(32, 2048),
+        #     nn.Conv2d(2048, 2048, 3, padding=0),
+        #     nn.ReLU(inplace=True),
+        #     nn.GroupNorm(32 , 2048),
+        #     nn.Conv2d(2048, 4096, 1),
+        #     nn.ReLU(inplace=True),
             
-            nn.Dropout(0.5),
-            nn.AdaptiveAvgPool2d((1,1)),
-        )
+        #     nn.Dropout(0.5),
+        #     nn.AdaptiveAvgPool2d((1,1)),
+        # )
         self.clothes_cls_fc = nn.Linear(4096, 46)
         self.attr_recog_fc = nn.Linear(4096, 1000)
         
