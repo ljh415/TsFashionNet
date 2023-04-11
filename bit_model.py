@@ -82,7 +82,6 @@ class BiT_TSFashionNet(nn.Module):
             nn.BatchNorm2d(4096),
             nn.ReLU(inplace=True),
             
-            nn.Conv2d(4096, 2048, 1),
             nn.Dropout(0.5),
             nn.AdaptiveAvgPool2d((1, 1))
         )
