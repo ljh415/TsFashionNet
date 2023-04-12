@@ -71,36 +71,21 @@ class BiT_TSFashionNet(nn.Module):
         
         # adv_bit, best
         self.texture_stream = nn.Sequential(
-            # nn.GroupNorm(32, 4096),
+            nn.GroupNorm(32, 4096),
             # StdConv2d(in_channels=4096, out_channels=2048, kernel_size=3, padding=0),
             nn.Conv2d(4096, 2048, 3, padding=0),
-            nn.BatchNorm2d(2048),
+            # nn.BatchNorm2d(2048),
             nn.ReLU(inplace=True),
-            # nn.GroupNorm(32, 2048),
+            nn.GroupNorm(32, 2048),
             # StdConv2d(in_channels=2048, out_channels=4096, kernel_size=1),
             nn.Conv2d(2048, 4096, 1),
-            nn.BatchNorm2d(4096),
+            # nn.BatchNorm2d(4096),
             nn.ReLU(inplace=True),
             
             nn.Dropout(0.5),
             nn.AdaptiveAvgPool2d((1, 1))
         )
         
-        # new Bottle neck stream
-        # self.texture_stream = nn.Sequential(
-        #     nn.GroupNorm(32, 4096),
-        #     nn.Conv2d(4096, 2048, 1),
-        #     nn.ReLU(inplace=True),
-        #     nn.GroupNorm(32, 2048),
-        #     nn.Conv2d(2048, 2048, 3, padding=0),
-        #     nn.ReLU(inplace=True),
-        #     nn.GroupNorm(32 , 2048),
-        #     nn.Conv2d(2048, 4096, 1),
-        #     nn.ReLU(inplace=True),
-            
-        #     nn.Dropout(0.5),
-        #     nn.AdaptiveAvgPool2d((1,1)),
-        # )
         self.clothes_cls_fc = nn.Linear(4096, 46)
         self.attr_recog_fc = nn.Linear(4096, 1000)
         
@@ -109,20 +94,20 @@ class BiT_TSFashionNet(nn.Module):
         # 다초기화
         # self.shape_backbone.apply(self._init_weight)
         self.shape_stream = nn.Sequential(
-            # nn.GroupNorm(32, 2048*self.channel_factor),
+            nn.GroupNorm(32, 2048*self.channel_factor),
             # StdConv2d(in_channels=2048*self.channel_factor, out_channels=1024, kernel_size=1),
             nn.Conv2d(2048*self.channel_factor, 1024, 1),
-            nn.BatchNorm2d(1024),
+            # nn.BatchNorm2d(1024),
             nn.ReLU(inplace=True),
-            # nn.GroupNorm(32, 1024),
+            nn.GroupNorm(32, 1024),
             # StdConv2d(in_channels=1024, out_channels=512, kernel_size=3, padding=1),
             nn.Conv2d(1024, 512, 3, padding=1),
-            nn.BatchNorm2d(512),
+            # nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
-            # nn.GroupNorm(32, 512),
+            nn.GroupNorm(32, 512),
             # StdConv2d(in_channels=512, out_channels=1024, kernel_size=1),
             nn.Conv2d(512, 1024, 1),
-            nn.BatchNorm2d(1024),
+            # nn.BatchNorm2d(1024),
             nn.ReLU(inplace=True)
         )
         
