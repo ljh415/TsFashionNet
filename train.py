@@ -103,7 +103,7 @@ def train():
     
     train_dataloader = DataLoader(
         train_dataset,
-        sampler=ImbalancedDatasetSampler(train_dataset)
+        sampler=ImbalancedDatasetSampler(train_dataset),
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
@@ -111,7 +111,7 @@ def train():
     )
     valid_dataloader = DataLoader(
         valid_dataset,
-        sampler=ImbalancedDatasetSampler(valid_dataset)
+        sampler=ImbalancedDatasetSampler(valid_dataset),
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
