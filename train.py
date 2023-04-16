@@ -17,7 +17,6 @@ from dataset import TSDataset
 from model import TSFashionNet
 from bit_model import BiT_TSFashionNet, PreTrained_Dict
 from square_pad import SquarePad
-from torchsampler import ImbalancedDatasetSampler
 
 from custom_loss import LandmarkLoss  # 변경
 from base_loss import BaseLoss
@@ -103,7 +102,6 @@ def train():
     
     train_dataloader = DataLoader(
         train_dataset,
-        sampler=ImbalancedDatasetSampler(train_dataset),
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
@@ -111,7 +109,6 @@ def train():
     )
     valid_dataloader = DataLoader(
         valid_dataset,
-        sampler=ImbalancedDatasetSampler(valid_dataset),
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
