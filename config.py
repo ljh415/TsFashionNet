@@ -42,10 +42,10 @@ sweep_configuration = {
             'name': 'valid_attribute_recall3'
         },
         'parameters': {
-            'cov_epoch': {'values':[1,2,3]},
-            'epochs': {'min':12, 'max':20},
+            'cov_epoch': {'values':[2,3,4]},
+            'epochs': {'min':8, 'max':12},
             'lr': {'min':3e-3, 'max':1e-2},
-            'att_weight': {"min":400, "max":600}
+            'att_weight': {"min":400, "max":600},
         }
     }
 }
