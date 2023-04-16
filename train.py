@@ -99,6 +99,7 @@ def train():
     # dataset, loader
     train_dataset = TSDataset(train_path, img_dir, transform=train_transform)
     valid_dataset = TSDataset(valid_path, img_dir, transform=val_transform)
+    class_weight_dict = train_dataset.make_class_weight()
     
     train_dataloader = DataLoader(
         train_dataset,
@@ -117,17 +118,17 @@ def train():
     
     if loss_mode == 'base':
         criterion_dict = {
-            'base': BaseLoss(config['reduction'])
+            'base': BaseLoss(config['reduction'], class_weight=class_weight_dict)
         }
     elif loss_mode == 'cov':
         criterion_dict = {
-            'shape': CoVLoss(config['reduction'], shape_only=True),
-            'all' : CoVLoss(config['reduction'], shape_only=False)
+            'shape': CoVLoss(config['reduction'], shape_only=True, class_weight=class_weight_dict),
+            'all' : CoVLoss(config['reduction'], shape_only=False, class_weight=class_weight_dict)
         }
     elif loss_mode == 'multi':
         criterion_dict = {
-            'cov': CoVLoss(config['reduction'], shape_only=False),
-            'base': BaseLoss(config['reduction'])
+            'cov': CoVLoss(config['reduction'], shape_only=False, class_weight=class_weight_dict),
+            'base': BaseLoss(config['reduction'], class_weight=class_weight_dict)
         }
     else :
         raise Exception("Wrong loss mode.")
