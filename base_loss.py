@@ -19,11 +19,11 @@ class BaseLoss(nn.Module):
         
         if not shape_only:
             self.num_losses = 4
-            # self.category_criterion = nn.CrossEntropyLoss(weight=cat_weight).to(self.device)
-            self.category_criterion = SmoothCrossEntropyLoss(weight=cat_weight, smoothing=smoothing)
+            self.category_criterion = nn.CrossEntropyLoss(weight=cat_weight).to(self.device)
+            # self.category_criterion = SmoothCrossEntropyLoss(weight=cat_weight, smoothing=smoothing)
             self.attribute_criterion = nn.BCELoss(weight=att_weight).to(self.device)
     
-    def forward(self, preds, targets, shape=False):
+    def forward(self, preds, targets, shape=False, train=False):
         """_summary_
 
         Args:

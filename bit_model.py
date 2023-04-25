@@ -113,14 +113,14 @@ class BiT_TSFashionNet(nn.Module):
         
         # adv_bit, best
         self.texture_stream = nn.Sequential(
-            nn.GroupNorm(32, 2048),
+            nn.GroupNorm(32, 4096),
             # StdConv2d(in_channels=4096, out_channels=2048, kernel_size=3, padding=0),
-            nn.Conv2d(2048, 1024, 3, padding=0),
+            nn.Conv2d(4096, 2048, 3, padding=0),
             # nn.BatchNorm2d(2048),
             nn.ReLU(inplace=True),
-            nn.GroupNorm(32, 1024),
+            nn.GroupNorm(32, 2048),
             # StdConv2d(in_channels=2048, out_channels=4096, kernel_size=1),
-            nn.Conv2d(1024, 2048, 1),
+            nn.Conv2d(2048, 4096, 1),
             # nn.BatchNorm2d(4096),
             nn.ReLU(inplace=True),
             
@@ -128,8 +128,8 @@ class BiT_TSFashionNet(nn.Module):
             nn.AdaptiveAvgPool2d((1, 1))
         )
         
-        self.clothes_cls_fc = nn.Linear(2048, 46)
-        self.attr_recog_fc = nn.Linear(2048, 1000)
+        self.clothes_cls_fc = nn.Linear(4096, 46)
+        self.attr_recog_fc = nn.Linear(4096, 1000)
         
         ### shape
         self.shape_backbone = nn.Sequential(OrderedDict(islice(self.shape_model._modules.items(), 2)))
@@ -213,13 +213,12 @@ class BiT_TSFashionNet(nn.Module):
         
         ### texture
         texture_out = self.texture_backbone(x)
-        #
         texture_out = self.texture_norm(texture_out)
 
         cat_shape = shape_feature.clone().detach()
         # texture_out = self.gate(texture_out, cat_shape)
-        # texture_out = torch.cat([texture_out, cat_shape], dim=1)
-        texture_out = self.aff(texture_out, cat_shape)
+        # texture_out = self.aff(texture_out, cat_shape)
+        texture_out = torch.cat([texture_out, cat_shape], dim=1)
         
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)

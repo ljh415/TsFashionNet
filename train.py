@@ -118,17 +118,17 @@ def train():
     
     if loss_mode == 'base':
         criterion_dict = {
-            'base': BaseLoss(config['reduction'], smoothing=0.2)
+            'base': BaseLoss(config['reduction'])
         }
     elif loss_mode == 'cov':
         criterion_dict = {
-            'shape': CoVLoss(config['reduction'], shape_only=True, smoothing=0.2),
-            'all' : CoVLoss(config['reduction'], shape_only=False, smoothing=0.2)
+            'shape': CoVLoss(config['reduction'], shape_only=True),
+            'all' : CoVLoss(config['reduction'], shape_only=False)
         }
     elif loss_mode == 'multi':
         criterion_dict = {
-            'cov': CoVLoss(config['reduction'], shape_only=False, smoothing=0.2),
-            'base': BaseLoss(config['reduction'], smoothing=0.2)
+            'cov': CoVLoss(config['reduction'], shape_only=False),
+            'base': BaseLoss(config['reduction'])
         }
     else :
         raise Exception("Wrong loss mode.")
