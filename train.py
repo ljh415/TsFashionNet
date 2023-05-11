@@ -550,6 +550,7 @@ def test():
     model.eval()
     
     trans = transforms.Compose([
+        SquarePad(),
         transforms.Resize((224, 224)),
         transforms.ToTensor()
     ])
