@@ -70,11 +70,19 @@ def add_weight_heatmap(img, landmark, alpha=0.3, plot=True):
         height, width = img.size
     check_img = np.zeros(dtype=np.float32, shape=(width, height))
     
-    for w in landmark:
+    for i, w in enumerate(landmark):
         if isTensor:
             check_img = np.add(check_img, w)
         else :
-            check_img += w
+            try:
+                w = w.detach().cpu().numpy()
+                check_img = np.add(check_img, w)
+                
+            except:
+                check_img = np.add(check_img, w)
+                
+            # check_img += w
+            
     new_h_m = np.stack([check_img*255]*3, axis=-1).astype(np.uint8)
     if isTensor:
         img *= 255/np.array(img).max()
@@ -92,7 +100,7 @@ def add_weight_heatmap(img, landmark, alpha=0.3, plot=True):
         return new_img
     
 def landmark_check(img, landmark, lm_out=None):
-    
+    print("landmark check")
     if isinstance(img, torch.Tensor):
         img = np.transpose(img, (1, 2, 0))
         height, width, _ = img.shape
@@ -113,7 +121,7 @@ def landmark_check(img, landmark, lm_out=None):
     
     lm_gt = add_weight_heatmap(img, landmark, plot=False)
     if lm_out is not None:
-        lm_pred = add_weight_heatmap(img, upsized_lm.numpy(), plot=False)
+        lm_pred = add_weight_heatmap(img, upsized_lm, plot=False)
     
     plt.figure(figsize=(10, 15))
     plt.subplot(1,3,1)
@@ -128,6 +136,7 @@ def landmark_check(img, landmark, lm_out=None):
         return upsized_lm
 
 def category_check(cat_gt, cat_pred, verbose=False):
+    print("category check")
     cat_gt = cat_gt.item()
     cat_pred = torch.argmax(cat_pred).detach().cpu().numpy().item()
     if verbose:
@@ -140,7 +149,7 @@ def category_check(cat_gt, cat_pred, verbose=False):
     return cat_gt, cat_pred
 
 def attribute_check(attr_gt, attr_pred, thr=None):
-    
+    print("attribute_check")
     attr_gt = [x[0] for x in attr_gt.nonzero().numpy()]
     
     if thr:
