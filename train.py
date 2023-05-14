@@ -577,55 +577,57 @@ def test():
     
     # inference, calc
     total_time = 0
-    for idx, (img, cat, att, _, _) in enumerate(test_dataloder):
-        one_iter_start = time.time()
-        
-        cat = torch.Tensor([torch.squeeze(cat)])
-        cat = cat.to(device)
-        att = att.to(device)
-        img_tensor = img.to(device)
-        
-        cat_out, att_out, _, _ = model(img_tensor, shape=False)
-        
-        # calc metric
-        calc_dict = calc_metric(metric_dict, cat_out, att_out, cat, att)
-        
-        for key, score in calc_dict.items():
-            task, metric_name = key.split("-")
-            result_dict[task][metric_name].append(score)
-        
-        # calc recall about classes
-        tp_dict = calc_class_recall(att, att_out)
-        for key, values in tp_dict.items():
-            for value in values:
-                class_recall_dict[key][value] += 1
-        
-        one_iter_time = time.time() - one_iter_start
-        total_time += one_iter_time
-        avg_time = total_time / (idx+1)
-        estimate_time = avg_time * config['test_num']
-        
-        total_show = str(datetime.timedelta(seconds=total_time))
-        estimate_show = str(datetime.timedelta(seconds=estimate_time))
-        total_short = total_show.split(".")[0]
-        estimate_short = estimate_show.split(".")[0]
-        
-        status = (
-            "\r {:6d}/{:6d}\t[{} => {}] | top3_acc: {:.3f}, top5_acc: {:.3f}, top3_recall: {:.3f}, top5_recall: {:.3f}  ".format(
-                idx+1,
-                config['test_num'],
-                total_short,
-                estimate_short,
-                np.mean(result_dict['category']['top3_acc']),
-                np.mean(result_dict['category']['top5_acc']),
-                np.mean(result_dict['attribute']['top3_recall']),
-                np.mean(result_dict['attribute']['top5_recall']),
+    with torch.no_grad():
+        for idx, (img, cat, att, _, _) in enumerate(test_dataloder):
+            one_iter_start = time.time()
+            
+            cat = torch.Tensor([torch.squeeze(cat)])
+            cat = cat.to(device)
+            att = att.to(device)
+            img_tensor = img.to(device)
+            
+            cat_out, att_out, _, _ = model(img_tensor, shape=False)
+            cat_out = torch.unsqueeze(cat_out, 0)
+            
+            # calc metric
+            calc_dict = calc_metric(metric_dict, cat_out, att_out, cat, att)
+            
+            for key, score in calc_dict.items():
+                task, metric_name = key.split("-")
+                result_dict[task][metric_name].append(score)
+            
+            # calc recall about classes
+            tp_dict = calc_class_recall(att, att_out)
+            for key, values in tp_dict.items():
+                for value in values:
+                    class_recall_dict[key][value] += 1
+            
+            one_iter_time = time.time() - one_iter_start
+            total_time += one_iter_time
+            avg_time = total_time / (idx+1)
+            estimate_time = avg_time * config['test_num']
+            
+            total_show = str(datetime.timedelta(seconds=total_time))
+            estimate_show = str(datetime.timedelta(seconds=estimate_time))
+            total_short = total_show.split(".")[0]
+            estimate_short = estimate_show.split(".")[0]
+            
+            status = (
+                "\r {:6d}/{:6d}\t[{} => {}] | top3_acc: {:.3f}, top5_acc: {:.3f}, top3_recall: {:.3f}, top5_recall: {:.3f}  ".format(
+                    idx+1,
+                    config['test_num'],
+                    total_short,
+                    estimate_short,
+                    np.mean(result_dict['category']['top3_acc']),
+                    np.mean(result_dict['category']['top5_acc']),
+                    np.mean(result_dict['attribute']['top3_recall']),
+                    np.mean(result_dict['attribute']['top5_recall']),
+                )
             )
-        )
-        print(status, end="")
-        
-        if idx == config['test_num']:
-            break
+            print(status, end="")
+            
+            if idx == config['test_num']:
+                break
     print()
     # show
     print_config(config, model, trainable=True)
