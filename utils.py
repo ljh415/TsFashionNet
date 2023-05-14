@@ -20,7 +20,7 @@ NORMALIZE_DICT = {
 }
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-with open('./resources/attribute_map.pickle', 'rb') as f:
+with open(os.path.join(os.path.expanduser("~"), 'paper', 'resources', 'attribute_map.pickle'), 'rb') as f:
     ATT_MAP = pickle.load(f)
 
 def fix_seed():
