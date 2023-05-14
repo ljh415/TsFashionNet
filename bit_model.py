@@ -104,8 +104,8 @@ class BiT_TSFashionNet(nn.Module):
         self.aff = AFF(channels=2048)
         
         ### norm
-        self.shape_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
-        self.texture_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
+        # self.shape_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
+        # self.texture_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
         
         ### texture
         self.texture_backbone = nn.Sequential(OrderedDict(islice(self.texture_model._modules.items(), 2)))
@@ -204,7 +204,7 @@ class BiT_TSFashionNet(nn.Module):
         ### shape
         shape_feature = self.shape_backbone(x)
         #
-        shape_feature = self.shape_norm(shape_feature)
+        # shape_feature = self.shape_norm(shape_feature)
 
         shape_out = self.shape_stream(shape_feature)
         vis_out = torch.flatten(shape_out, start_dim=1)
@@ -218,7 +218,7 @@ class BiT_TSFashionNet(nn.Module):
         
         ### texture
         texture_out = self.texture_backbone(x)
-        texture_out = self.texture_norm(texture_out)
+        # texture_out = self.texture_norm(texture_out)
 
         cat_shape = shape_feature.clone().detach()
         texture_out = self.gate(texture_out, cat_shape)
