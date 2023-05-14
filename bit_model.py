@@ -37,8 +37,13 @@ class GateNet(nn.Module):
     def __init__(self, channel_factor):
         super(GateNet, self).__init__()
         self.gate = nn.Sequential(
-            nn.Conv2d(4096*channel_factor, 1024, kernel_size=1),
-            nn.BatchNorm2d(1024),
+            nn.GroupNorm(32, 4096*channel_factor),
+            nn.Conv2d(4096*channel_factor, 4096*channel_factor//2, kernel_size=1),
+            # nn.BatchNorm2d(4096*channel_factor//2),
+            nn.ReLU(inplace=True),
+            nn.GroupNorm(32, 4096*channel_factor//2),
+            nn.Conv2d(4096*channel_factor//2, 4096*channel_factor, kernel_size=1),
+            # nn.BatchNorm2d(4096*channel_factor//2),
             nn.ReLU(inplace=True)
         )
     
@@ -216,9 +221,9 @@ class BiT_TSFashionNet(nn.Module):
         texture_out = self.texture_norm(texture_out)
 
         cat_shape = shape_feature.clone().detach()
-        # texture_out = self.gate(texture_out, cat_shape)
+        texture_out = self.gate(texture_out, cat_shape)
         # texture_out = self.aff(texture_out, cat_shape)
-        texture_out = torch.cat([texture_out, cat_shape], dim=1)
+        # texture_out = torch.cat([texture_out, cat_shape], dim=1)
         
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
