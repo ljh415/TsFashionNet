@@ -92,6 +92,37 @@ class AFF(nn.Module):
         xo = 2 * texture * wei + 2 * shape * (1-wei)
         return xo
 
+class MS_CAM(nn.Module):
+    def __init__(self, channels=64, r=4):
+        super(MS_CAM, self).__init__()
+        inter_channels = int(channels // r)
+        
+        self.local_att = nn.Sequential(
+            nn.Conv2d(channels, inter_channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(inter_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(inter_channels, channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(channels),
+        )
+
+        self.global_att = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(channels, inter_channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(inter_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(inter_channels, channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(channels),
+        )
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        xl = self.local_att(x)
+        xg = self.global_att(x)
+        xlg = xl + xg
+        wei = self.sigmoid(xlg)
+        return x * wei
+
 class BiT_TSFashionNet(nn.Module):
     def __init__(self, model_name, num_of_classes=1000, bit_classifier=False):
         super(BiT_TSFashionNet, self).__init__()
@@ -101,11 +132,12 @@ class BiT_TSFashionNet(nn.Module):
         self.channel_factor = 3 if 'x3' in model_name else 1
         self.gate = GateNet(self.channel_factor)
         
-        self.aff = AFF(channels=2048)
+        # self.aff = AFF(channels=2048)
+        self.ms_cam = MS_CAM(channels=4096)
         
         ### norm
-        # self.shape_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
-        # self.texture_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
+        self.shape_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
+        self.texture_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
         
         ### texture
         self.texture_backbone = nn.Sequential(OrderedDict(islice(self.texture_model._modules.items(), 2)))
@@ -204,7 +236,7 @@ class BiT_TSFashionNet(nn.Module):
         ### shape
         shape_feature = self.shape_backbone(x)
         #
-        # shape_feature = self.shape_norm(shape_feature)
+        shape_feature = self.shape_norm(shape_feature)
 
         shape_out = self.shape_stream(shape_feature)
         vis_out = torch.flatten(shape_out, start_dim=1)
@@ -218,12 +250,13 @@ class BiT_TSFashionNet(nn.Module):
         
         ### texture
         texture_out = self.texture_backbone(x)
-        # texture_out = self.texture_norm(texture_out)
+        texture_out = self.texture_norm(texture_out)
 
         cat_shape = shape_feature.clone().detach()
-        texture_out = self.gate(texture_out, cat_shape)
+        # texture_out = self.gate(texture_out, cat_shape)
         # texture_out = self.aff(texture_out, cat_shape)
-        # texture_out = torch.cat([texture_out, cat_shape], dim=1)
+        texture_out = torch.cat([texture_out, cat_shape], dim=1)
+        texture_out = self.ms_cam(texture_out)
         
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
