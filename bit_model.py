@@ -52,6 +52,7 @@ class GateNet(nn.Module):
         out = self.gate(out)
         return out
 
+
 class AFF(nn.Module):
     # feature fusion
     def __init__(self, channels=4096, r=4):
@@ -91,6 +92,63 @@ class AFF(nn.Module):
         wei = self.sigmoid(xlg)
         xo = 2 * texture * wei + 2 * shape * (1-wei)
         return xo
+
+class iAFF(nn.Module):
+    def __init__(self, channels=64, r=4):
+        super(iAFF, self).__init__()
+        inter_channels = int(channels // r)
+
+        self.local_att = nn.Sequential(
+            nn.Conv2d(channels, inter_channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(inter_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(inter_channels, channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(channels),
+        )
+        self.global_att = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(channels, inter_channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(inter_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(inter_channels, channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(channels),
+        )
+
+        self.local_att2 = nn.Sequential(
+            nn.Conv2d(channels, inter_channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(inter_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(inter_channels, channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(channels),
+        )
+        self.global_att2 = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(channels, inter_channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(inter_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(inter_channels, channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(channels),
+        )
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, texture, shape):
+        xa = texture + shape
+        
+        xl = self.local_att(xa)
+        xg = self.global_att(xa)
+        xlg = xl + xg
+        wei = self.sigmoid(xlg)
+        xi = texture * wei + shape * (1 - wei)
+
+        xl2 = self.local_att2(xi)
+        xg2 = self.global_att(xi)
+        xlg2 = xl2 + xg2
+        wei2 = self.sigmoid(xlg2)
+        xo = texture * wei2 + shape * (1 - wei2)
+        
+        return xo
+
 
 class MS_CAM(nn.Module):
     def __init__(self, channels=64, r=4):
@@ -133,7 +191,7 @@ class BiT_TSFashionNet(nn.Module):
         self.gate = GateNet(self.channel_factor)
         
         # self.aff = AFF(channels=2048)
-        self.ms_cam = MS_CAM(channels=4096)
+        self.iaff = iAFF(channels=2048)
         
         ### norm
         self.shape_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
@@ -148,16 +206,20 @@ class BiT_TSFashionNet(nn.Module):
             for layer_num, layer_ in inner_seq.named_parameters():
                 layer_.reauire_grad = False
         
+        # t_c = 4096
+        t_c = 2048
+        
         # adv_bit, best
         self.texture_stream = nn.Sequential(
-            nn.GroupNorm(32, 4096),
+            nn.GroupNorm(32, t_c),
             # StdConv2d(in_channels=4096, out_channels=2048, kernel_size=3, padding=0),
-            nn.Conv2d(4096, 2048, 3, padding=0),
+            nn.Conv2d(t_c, t_c//2, 3, padding=0),
             # nn.BatchNorm2d(2048),
             nn.ReLU(inplace=True),
-            nn.GroupNorm(32, 2048),
+            
+            nn.GroupNorm(32, t_c//2),
             # StdConv2d(in_channels=2048, out_channels=4096, kernel_size=1),
-            nn.Conv2d(2048, 4096, 1),
+            nn.Conv2d(t_c//2, t_c, 1),
             # nn.BatchNorm2d(4096),
             nn.ReLU(inplace=True),
             
@@ -165,8 +227,8 @@ class BiT_TSFashionNet(nn.Module):
             nn.AdaptiveAvgPool2d((1, 1))
         )
         
-        self.clothes_cls_fc = nn.Linear(4096, 46)
-        self.attr_recog_fc = nn.Linear(4096, 1000)
+        self.clothes_cls_fc = nn.Linear(t_c, 46)
+        self.attr_recog_fc = nn.Linear(t_c, 1000)
         
         ### shape
         self.shape_backbone = nn.Sequential(OrderedDict(islice(self.shape_model._modules.items(), 2)))
@@ -255,8 +317,8 @@ class BiT_TSFashionNet(nn.Module):
         cat_shape = shape_feature.clone().detach()
         # texture_out = self.gate(texture_out, cat_shape)
         # texture_out = self.aff(texture_out, cat_shape)
-        texture_out = torch.cat([texture_out, cat_shape], dim=1)
-        texture_out = self.ms_cam(texture_out)
+        # texture_out = torch.cat([texture_out, cat_shape], dim=1)
+        texture_out = self.iaff(texture_out, cat_shape)
         
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
