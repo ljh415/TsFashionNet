@@ -3,8 +3,8 @@ import torch
 from base_loss import BaseLoss
 
 class CoVLoss(BaseLoss):
-    def __init__(self, lm_reduction, shape_only=False, mean_sort='full', mean_decay_param=1.0):
-        super(CoVLoss, self).__init__(lm_reduction, shape_only)
+    def __init__(self, lm_reduction, shape_only=False, mean_sort='full', mean_decay_param=1.0, class_weight=None, smoothing=0.0):
+        super(CoVLoss, self).__init__(lm_reduction, shape_only, class_weight, smoothing)
         
         self.shape = shape_only
         

@@ -1,10 +1,10 @@
 import torch.nn as nn
 
 from utils import device
-from custom_loss import LandmarkLoss
+from custom_loss import LandmarkLoss, SmoothCrossEntropyLoss
 
 class BaseLoss(nn.Module):
-    def __init__(self, lm_reduction, shape_only=False):
+    def __init__(self, lm_reduction, shape_only=False, class_weight=None, smoothing=0.0):
         super(BaseLoss, self).__init__()
         
         self.device = device
@@ -12,12 +12,18 @@ class BaseLoss(nn.Module):
         self.lm_criterion = LandmarkLoss(lm_reduction).to(self.device)
         self.vis_criterion = nn.BCELoss().to(self.device)
         
+        if class_weight:
+            cat_weight = class_weight['category'].to(self.device)
+            att_weight = class_weight['attribute'].to(self.device)
+        else : cat_weight, att_weight=None, None
+        
         if not shape_only:
             self.num_losses = 4
-            self.category_criterion = nn.CrossEntropyLoss().to(self.device)
-            self.attribute_criterion = nn.BCELoss().to(self.device)
+            self.category_criterion = nn.CrossEntropyLoss(weight=cat_weight).to(self.device)
+            # self.category_criterion = SmoothCrossEntropyLoss(weight=cat_weight, smoothing=smoothing)
+            self.attribute_criterion = nn.BCELoss(weight=att_weight).to(self.device)
     
-    def forward(self, preds, targets, shape=False):
+    def forward(self, preds, targets, shape=False, train=False):
         """_summary_
 
         Args:

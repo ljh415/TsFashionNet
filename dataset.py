@@ -2,6 +2,7 @@ import os
 import pickle
 import numpy as np
 from PIL import Image
+from collections import defaultdict
 
 import torch
 import torch.nn.functional as F
@@ -89,6 +90,27 @@ class TSDataset(Dataset):
                 target[joint_id][img_y[0] : img_y[1], img_x[0]:img_x[1]] = g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
         return target, visibility
 
+    def make_class_weight(self):
+        def _calc_class_weight(cnt_dict):
+            class_weight = [1-value/sum(cnt_dict.values()) for _, value in cnt_dict.items()]
+            return torch.FloatTensor(class_weight)
+        def _sort_dict(cnt_dict):
+            cnt_dict = dict(sorted(cnt_dict.items(), key = lambda x:x[0]))
+            return cnt_dict
+        cat_cnt_dict = defaultdict(int)
+        att_cnt_dict = defaultdict(int)
+        for _, file_data in self.raw_data:
+            for cat in file_data['category']:
+                cat_cnt_dict[int(cat)] += 1
+            att_infos = [idx for idx, value in enumerate(file_data['attr']) if value != -1]
+            for att in att_infos:
+                att_cnt_dict[int(att)] += 1
+        
+        cat_weight = _calc_class_weight(_sort_dict(cat_cnt_dict))
+        att_weight = _calc_class_weight(_sort_dict(att_cnt_dict))
+        
+        return {'category': cat_weight, 'attribute': att_weight}
+    
     def __getitem__(self, index):
         img_path, data_dict = self.raw_data[index]
         landmark_info = data_dict['landmark']
