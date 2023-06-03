@@ -191,7 +191,7 @@ class BiT_TSFashionNet(nn.Module):
         self.gate = GateNet(self.channel_factor)
         
         # self.aff = AFF(channels=2048)
-        self.iaff = iAFF(channels=2048)
+        # self.iaff = iAFF(channels=2048)
         
         ### norm
         self.shape_norm = tml.GroupNormAct(2048, 32, eps=1e-5, affine=True)
@@ -206,8 +206,8 @@ class BiT_TSFashionNet(nn.Module):
             for layer_num, layer_ in inner_seq.named_parameters():
                 layer_.reauire_grad = False
         
-        # t_c = 4096
-        t_c = 2048
+        t_c = 4096
+        # t_c = 2048
         
         # adv_bit, best
         self.texture_stream = nn.Sequential(
@@ -315,10 +315,10 @@ class BiT_TSFashionNet(nn.Module):
         texture_out = self.texture_norm(texture_out)
 
         cat_shape = shape_feature.clone().detach()
+        texture_out = torch.cat([texture_out, cat_shape], dim=1)
         # texture_out = self.gate(texture_out, cat_shape)
         # texture_out = self.aff(texture_out, cat_shape)
-        # texture_out = torch.cat([texture_out, cat_shape], dim=1)
-        texture_out = self.iaff(texture_out, cat_shape)
+        # texture_out = self.iaff(texture_out, cat_shape)
         
         texture_out = self.texture_stream(texture_out)
         texture_out = torch.squeeze(texture_out)
